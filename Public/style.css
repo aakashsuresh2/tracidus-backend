@@ -1,0 +1,94 @@
+/* General Page Styling */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f6f8;
+    margin: 0;
+    padding: 0;
+
+    /* Hide normal pointer on laptops/desktops */
+    cursor: none;
+}
+
+/* Container */
+.container {
+    width: 50%;
+    margin: 50px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+}
+
+/* Heading */
+h2 {
+    text-align: center;
+    color: #333;
+}
+
+/* Input Fields */
+input {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+/* Button */
+button {
+    width: 100%;
+    padding: 10px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+/* Prediction Text */
+#result {
+    margin-top: 15px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: #444;
+}
+
+/* Custom animated cursor elements */
+.cursor, .cursor-dot {
+    position: fixed;
+    border-radius: 9999px;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    display: block;
+}
+
+/* Example styling for the animated cursors (adjust as your original) */
+.cursor {
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(0,234,255,0.6);
+    box-shadow: 0 0 40px rgba(0,234,255,0.4);
+}
+
+.cursor-dot {
+    width: 6px;
+    height: 6px;
+    background: #00eaff;
+}
+
+/* Hide animated cursor and show normal pointer on touch devices (phones) */
+@media (hover: none), (pointer: coarse) {
+    body {
+        cursor: auto; /* Show normal pointer */
+    }
+    .cursor,
+    .cursor-dot {
+        display: none !important; /* Hide animated cursors */
+    }
+}
