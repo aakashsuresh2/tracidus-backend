@@ -23,11 +23,15 @@
 <script src="./phishing_features.js"></script>
 <script>
   // Frontend configuration only. Never place API secrets here.
-  // Local development defaults to the Node backend on port 10000.
+  // Local development uses the Node backend on port 10000.
   window.TRACIDUS_API_BASE_URL = window.TRACIDUS_API_BASE_URL ||
-    ((location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-      ? 'http://localhost:10000'
-      : '');
+    (
+      (location.protocol === 'file:' ||
+       location.hostname === 'localhost' ||
+       location.hostname === '127.0.0.1')
+        ? 'http://localhost:10000'
+        : 'https://tracidus-backend.onrender.com'
+    );
 </script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
