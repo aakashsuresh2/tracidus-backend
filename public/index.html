@@ -21,6 +21,14 @@
 <!-- Add this just above your script.js include -->
 <!--<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.12.0/dist/tf.min.js"></script>-->
 <script src="./phishing_features.js"></script>
+<script>
+  // Frontend configuration only. Never place API secrets here.
+  // Local development defaults to the Node backend on port 10000.
+  window.TRACIDUS_API_BASE_URL = window.TRACIDUS_API_BASE_URL ||
+    ((location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://localhost:10000'
+      : '');
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
@@ -93,16 +101,52 @@ textScan: { "0%": { width: "0%" }, "100%": { width: "100%" } }
 /* Neon mark for highlights */
 mark.neon { background: rgba(0,234,255,0.18); color:#e6fdff; padding:0 .15rem; border-radius:.25rem; box-shadow:0 0 10px rgba(0,234,255,0.5) inset; }
 
-.kill-chain-tree ul { padding-left: 1.5rem; position: relative; }
-.kill-chain-tree ul::before { content: ''; position: absolute; left: 0.5rem; top: 0; bottom: 0; width: 1px; background: rgba(0, 234, 255, 0.3); }
-.kill-chain-tree li { position: relative; margin-bottom: 0.5rem; }
-.kill-chain-tree li::before { content: ''; position: absolute; top: 1rem; left: -1.0rem; width: 1rem; height: 1px; background: rgba(0, 234, 255, 0.3); }
 .tree-node-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border: 1px solid rgba(0,234,255,.3); border-radius: 999px; background: rgba(0,234,255,.1); backdrop-filter: blur(5px); cursor: pointer; transition: background-color 0.2s, transform 0.2s; }
 .tree-node-item:hover { background: rgba(0,234,255,.2); transform: translateX(4px); }
 .tree-node-item .arrow { transform: rotate(0deg); transition: transform 0.3s ease; }
 .tree-node-item.expanded .arrow { transform: rotate(90deg); }
 .tree-node-text { flex-grow: 1; }
 
+
+/* Technical intelligence + correlation UI */
+.tech-stat {
+  border: 1px solid rgba(0,234,255,.16);
+  background: rgba(7,11,20,.55);
+  border-radius: .9rem;
+  padding: .8rem;
+}
+.tech-stat-value {
+  font-family: DM Sans, ui-sans-serif, system-ui;
+  font-size: 1.55rem;
+  line-height: 1;
+  font-weight: 800;
+}
+.tech-stat-label {
+  margin-top: .35rem;
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(190,240,255,.55);
+}
+.tech-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .25rem .55rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(0,234,255,.2);
+  font-size: .68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.tech-evidence-item {
+  border-left: 2px solid rgba(0,234,255,.25);
+  padding-left: .65rem;
+}
+.correlation-box {
+  border: 1px solid rgba(138,255,193,.18);
+  background: linear-gradient(180deg, rgba(138,255,193,.06), rgba(0,234,255,.03));
+}
 :root {
 --trc-node-bg: rgba(0, 234, 255, 0.12); /* matches cyberBlue glow */
 --trc-node-border: rgba(0, 234, 255, 0.35);
@@ -111,6 +155,947 @@ mark.neon { background: rgba(0,234,255,0.18); color:#e6fdff; padding:0 .15rem; b
 }
 </style>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;800&family=Sono:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================
+   TRACIDUS UI REFINEMENT — presentation layer only
+   Keeps the existing analysis pipeline and API contract intact.
+   ========================================================= */
+
+:root {
+  --trc-bg: #050812;
+  --trc-surface: rgba(8, 14, 27, .82);
+  --trc-surface-strong: rgba(7, 12, 24, .94);
+  --trc-border: rgba(0, 234, 255, .16);
+  --trc-border-strong: rgba(0, 234, 255, .28);
+  --trc-text: #dffcff;
+  --trc-muted: rgba(190, 240, 255, .62);
+  --trc-cyan: #00eaff;
+  --trc-green: #8affc1;
+  --trc-magenta: #ff55dd;
+  --trc-radius: 22px;
+  --trc-shadow: 0 18px 60px rgba(0, 0, 0, .24);
+}
+
+html { scroll-behavior: auto; }
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(0,234,255,.055), transparent 28%),
+    radial-gradient(circle at 88% 22%, rgba(255,85,221,.035), transparent 24%),
+    var(--trc-bg);
+  color: var(--trc-text);
+  letter-spacing: .005em;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -3;
+  background:
+    linear-gradient(rgba(0,234,255,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,234,255,.022) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+}
+
+::selection {
+  background: rgba(0,234,255,.22);
+  color: #fff;
+}
+
+.cursor,
+.cursor-dot { transition: opacity .2s ease; }
+
+nav {
+  height: 72px;
+  background: rgba(4, 8, 18, .72) !important;
+  border-bottom-color: rgba(0,234,255,.12) !important;
+  box-shadow: 0 10px 40px rgba(0,0,0,.16);
+}
+
+nav > div {
+  height: 100%;
+}
+
+nav a {
+  transition: color .2s ease, opacity .2s ease, transform .2s ease;
+}
+
+nav a:hover {
+  transform: translateY(-1px);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .55rem;
+  min-width: 92px;
+  height: 38px;
+  padding: 0 .8rem;
+  border: 1px solid rgba(0,234,255,.24);
+  border-radius: 999px;
+  background: rgba(0,234,255,.055);
+  color: #cfffff;
+  font-family: "DM Sans", ui-sans-serif, system-ui;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color .25s ease, background .25s ease, box-shadow .25s ease, transform .2s ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0,234,255,.5);
+  background: rgba(0,234,255,.11);
+  box-shadow: 0 0 24px rgba(0,234,255,.12);
+}
+
+.theme-toggle-icon {
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 15px;
+  line-height: 1;
+  border: 1px solid rgba(0,234,255,.24);
+  background: rgba(0,234,255,.07);
+}
+
+header {
+  padding-top: 124px !important;
+}
+
+header > div {
+  max-width: 1240px;
+}
+
+header h1 {
+  max-width: 780px;
+  font-size: clamp(2.7rem, 5.2vw, 5rem) !important;
+  line-height: .98 !important;
+}
+
+header p {
+  max-width: 650px;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: rgba(210, 245, 255, .68);
+}
+
+header .relative.h-\[420px\] {
+  min-height: 480px;
+}
+
+header [data-tilt] {
+  inset: 10px !important;
+  border-color: rgba(0,234,255,.18) !important;
+  background:
+    linear-gradient(145deg, rgba(0,234,255,.065), rgba(8,14,27,.78) 55%, rgba(255,85,221,.025)) !important;
+  box-shadow:
+    0 30px 100px rgba(0,0,0,.3),
+    0 0 50px rgba(0,234,255,.055) !important;
+}
+
+header [data-tilt] > .p-6,
+header [data-tilt] > .p-8 {
+  padding: 28px !important;
+}
+
+header #radarCanvasHero {
+  filter: drop-shadow(0 0 18px rgba(0,234,255,.12));
+}
+
+.pill {
+  border-color: rgba(0,234,255,.14) !important;
+  background: rgba(0,234,255,.035) !important;
+  color: rgba(210,248,255,.74);
+  padding: .42rem .82rem !important;
+}
+
+main > div {
+  max-width: 1240px;
+}
+
+main .space-y-4 > h2,
+main .space-y-8 > h2 {
+  margin-bottom: 1.1rem;
+  letter-spacing: -.02em;
+}
+
+#app {
+  background:
+    linear-gradient(180deg, rgba(0,234,255,.018), transparent 22%);
+}
+
+#app > div {
+  padding-top: 92px !important;
+  padding-bottom: 96px !important;
+}
+
+#input {
+  min-height: 210px;
+  padding: 22px 24px !important;
+  border-width: 1px !important;
+  border-color: rgba(0,234,255,.18) !important;
+  border-radius: 20px !important;
+  background:
+    linear-gradient(180deg, rgba(8,15,29,.96), rgba(5,9,18,.92)) !important;
+  color: #dffcff !important;
+  font-size: .94rem;
+  line-height: 1.75;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025), var(--trc-shadow);
+}
+
+#input:focus {
+  border-color: rgba(0,234,255,.5) !important;
+  box-shadow:
+    0 0 0 3px rgba(0,234,255,.06),
+    0 0 40px rgba(0,234,255,.08),
+    inset 0 1px 0 rgba(255,255,255,.03) !important;
+}
+
+#input::placeholder {
+  color: rgba(190,240,255,.34);
+}
+
+#scanBtn,
+#clearBtn {
+  min-height: 44px;
+  padding-inline: 18px !important;
+  border-radius: 13px !important;
+}
+
+#scanBtn {
+  box-shadow: 0 10px 30px rgba(0,234,255,.14) !important;
+}
+
+#clearBtn {
+  border-color: rgba(0,234,255,.18) !important;
+}
+
+#counter {
+  font-size: 1rem;
+}
+
+#counterHero {
+  color: rgba(190,240,255,.5);
+}
+
+#app .grid.grid-cols-1.lg\:grid-cols-2 {
+  gap: 24px !important;
+}
+
+#app .space-y-8 > div > h3,
+#app section h3 {
+  letter-spacing: -.01em;
+}
+
+#highlighted,
+#link-analysis {
+  height: 285px !important;
+  padding: 20px !important;
+  border-width: 1px !important;
+  border-color: rgba(0,234,255,.13) !important;
+  border-radius: 18px !important;
+  background: rgba(6,11,21,.78) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
+}
+
+#highlighted {
+  font-family: "DM Sans", ui-sans-serif, system-ui;
+  font-size: .9rem;
+}
+
+#link-analysis {
+  font-size: .78rem;
+}
+
+#app .bg-cyberDeep\/70,
+#technical-intelligence,
+#manifest-scene {
+  border-color: rgba(0,234,255,.13) !important;
+  background:
+    linear-gradient(180deg, rgba(8,14,27,.78), rgba(5,10,19,.84)) !important;
+  box-shadow: var(--trc-shadow);
+}
+
+#app .rounded-2xl {
+  border-radius: var(--trc-radius);
+}
+
+#app .p-6 {
+  padding: 24px !important;
+}
+
+#app .mt-12 {
+  margin-top: 72px !important;
+}
+
+#app .mt-4 {
+  margin-top: 18px !important;
+}
+
+#app .space-y-8 > * + * {
+  margin-top: 26px !important;
+}
+
+#app .space-y-4 > * + * {
+  margin-top: 18px !important;
+}
+
+#app .tech-stat {
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 15px !important;
+  border-color: rgba(0,234,255,.12);
+  background: rgba(5,10,20,.72);
+}
+
+#app .tech-stat-value {
+  font-size: 1.65rem;
+}
+
+#technical-intelligence {
+  margin-top: 28px;
+  padding: 26px !important;
+}
+
+#technical-intelligence > div:first-child {
+  padding-bottom: 5px;
+}
+
+#vtSummary {
+  line-height: 1.65;
+  padding: 14px 16px !important;
+  background: rgba(0,234,255,.025) !important;
+}
+
+#technical-links > div {
+  border-color: rgba(0,234,255,.11) !important;
+  background: rgba(4,9,18,.72) !important;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease;
+}
+
+#technical-links > div:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0,234,255,.2) !important;
+}
+
+#explain {
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+#explain > div {
+  min-height: 86px;
+  padding: 14px !important;
+  border-color: rgba(0,234,255,.1) !important;
+  background: rgba(5,10,20,.62) !important;
+  transition: border-color .2s ease, transform .2s ease;
+}
+
+#explain > div:hover {
+  border-color: rgba(0,234,255,.22) !important;
+  transform: translateY(-2px);
+}
+
+.correlation-box {
+  padding: 18px !important;
+  border-color: rgba(138,255,193,.15) !important;
+  background:
+    linear-gradient(145deg, rgba(138,255,193,.055), rgba(0,234,255,.025)) !important;
+}
+
+#correlationNarrative {
+  line-height: 1.7;
+}
+
+#riskScore {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  letter-spacing: -.06em;
+}
+
+#riskTag {
+  padding: .35rem .7rem !important;
+}
+
+#riskBar {
+  height: 8px !important;
+  border-radius: 999px;
+}
+
+#manifest {
+  padding-top: 96px !important;
+  padding-bottom: 96px !important;
+  background:
+    linear-gradient(180deg, rgba(0,234,255,.018), rgba(5,8,18,.98)) !important;
+}
+
+#manifest-scene {
+  height: 620px !important;
+  border-radius: 24px !important;
+  box-shadow:
+    inset 0 0 80px rgba(0,0,0,.22),
+    0 25px 80px rgba(0,0,0,.24);
+}
+
+#manifest-desc {
+  padding: 18px 20px !important;
+  line-height: 1.7;
+  background: rgba(6,11,21,.82) !important;
+}
+
+.step {
+  min-height: 185px;
+  padding: 26px 22px 22px !important;
+  border-color: rgba(0,234,255,.12) !important;
+  background:
+    linear-gradient(160deg, rgba(0,234,255,.045), rgba(5,10,20,.72)) !important;
+  box-shadow: 0 15px 45px rgba(0,0,0,.12);
+  transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+
+.step:hover {
+  transform: translateY(-5px);
+  border-color: rgba(0,234,255,.26) !important;
+  box-shadow: 0 22px 55px rgba(0,0,0,.2), 0 0 30px rgba(0,234,255,.045);
+}
+
+.step-badge {
+  top: -14px !important;
+  left: 18px !important;
+  width: 34px !important;
+  height: 34px !important;
+  background: #07101d !important;
+  color: #bfffff;
+}
+
+.step-title {
+  margin-top: 5px;
+  font-size: 1rem;
+}
+
+.step-text {
+  margin-top: 10px;
+  font-size: .83rem;
+  line-height: 1.7;
+}
+
+
+.tree-node-item {
+  min-height: 48px;
+  padding: .75rem 1rem !important;
+  border-radius: 14px !important;
+  border-color: rgba(0,234,255,.13) !important;
+  background: rgba(5,10,20,.68) !important;
+  transition: background .2s ease, border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+
+.tree-node-item:hover {
+  border-color: rgba(0,234,255,.3) !important;
+  background: rgba(0,234,255,.06) !important;
+  box-shadow: 0 0 25px rgba(0,234,255,.05);
+}
+
+.tree-node-item.expanded {
+  border-color: rgba(0,234,255,.3) !important;
+  background: rgba(0,234,255,.075) !important;
+}
+
+
+#faq {
+  padding-top: 96px !important;
+  padding-bottom: 96px !important;
+}
+
+#faq details {
+  border-color: rgba(0,234,255,.12) !important;
+  background: rgba(6,11,21,.68) !important;
+  transition: border-color .2s ease, background .2s ease;
+}
+
+#faq details:hover {
+  border-color: rgba(0,234,255,.24) !important;
+}
+
+footer {
+  border-top-color: rgba(0,234,255,.1) !important;
+  padding: 26px 20px !important;
+}
+
+/* Softer motion for accessibility and performance. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+
+  .cursor,
+  .cursor-dot { display: none !important; }
+}
+
+/* NIGHT MODE — intentionally deeper, quieter cyber presentation. */
+body.night-mode {
+  --trc-bg: #02050b;
+  --trc-surface: rgba(3,8,16,.9);
+  background:
+    radial-gradient(circle at 50% -10%, rgba(0,234,255,.045), transparent 34%),
+    #02050b;
+}
+
+body.night-mode::before {
+  opacity: .48;
+  background-size: 88px 88px;
+}
+
+body.night-mode nav {
+  background: rgba(1,4,9,.88) !important;
+}
+
+body.night-mode #fx-canvas,
+body.night-mode #grid-canvas {
+  opacity: .55;
+}
+
+body.night-mode .theme-toggle {
+  border-color: rgba(138,255,193,.28);
+  background: rgba(138,255,193,.055);
+  color: #caffdf;
+}
+
+body.night-mode .theme-toggle-icon {
+  border-color: rgba(138,255,193,.28);
+  background: rgba(138,255,193,.07);
+}
+
+/* Hero content refinement: product explanation + psychological vector legend */
+.hero-description { margin-top: 24px !important; }
+.hero-description-primary {
+  margin: 0;
+  max-width: 620px;
+  color: var(--trc-copy-muted);
+  font-family: "DM Sans", ui-sans-serif, system-ui !important;
+  font-size: .98rem;
+  line-height: 1.75;
+  letter-spacing: -.01em;
+}
+.hero-description-primary span {
+  color: var(--trc-cyan);
+}
+.hero-description-signature {
+  margin: 10px 0 0;
+  color: rgba(190, 230, 238, .42);
+  font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-size: .67rem;
+  line-height: 1.6;
+  letter-spacing: .055em;
+}
+.hero-vector-legend {
+  margin-top: 18px;
+  padding: 0 2px 2px;
+  max-width: 690px;
+}
+.hero-vector-heading {
+  margin-bottom: 9px;
+  color: rgba(0, 234, 255, .68);
+  font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .24em;
+}
+.hero-vector-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 4px;
+  max-width: 690px;
+  color: rgba(190, 230, 238, .42);
+  font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-size: .61rem;
+  line-height: 1.65;
+  letter-spacing: .055em;
+}
+.hero-vector-list span:not(:last-child)::after {
+  content: "·";
+  margin-left: 10px;
+  color: rgba(190, 230, 238, .18);
+}
+.hero-vector-list span.is-active {
+  color: var(--trc-cyan);
+  text-shadow: 0 0 12px rgba(0, 234, 255, .18);
+}
+@media (max-width: 900px) {
+  .hero-vector-list { max-width: 100%; }
+}
+
+@media (max-width: 900px) {
+  nav { height: 64px; }
+  nav .hidden.md\:flex { display: flex !important; }
+  nav .hidden.md\:flex a:not(:last-of-type) { display: none; }
+
+  header {
+    padding-top: 98px !important;
+  }
+
+  header .relative.h-\[420px\] {
+    min-height: 410px;
+    height: 410px !important;
+  }
+
+  header [data-tilt] {
+    inset: 0 !important;
+  }
+
+  #app > div,
+  #manifest,
+  #how,
+  #faq {
+    padding-top: 64px !important;
+    padding-bottom: 64px !important;
+  }
+
+  #manifest-scene {
+    height: 520px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .theme-toggle {
+    min-width: 42px;
+    width: 42px;
+    padding: 0;
+  }
+
+  .theme-toggle-label {
+    display: none;
+  }
+
+  header h1 {
+    font-size: 2.65rem !important;
+  }
+
+  header .relative.h-\[420px\] {
+    min-height: 350px;
+    height: 350px !important;
+  }
+
+  header [data-tilt] > .p-6,
+  header [data-tilt] > .p-8 {
+    padding: 18px !important;
+  }
+
+  #radarCanvasHero {
+    min-height: 205px;
+  }
+
+  #input {
+    min-height: 180px;
+  }
+
+  #technical-intelligence,
+  #app .p-6 {
+    padding: 18px !important;
+  }
+
+  #manifest-scene {
+    height: 430px !important;
+  }
+
+  .step {
+    min-height: auto;
+  }
+}
+</style>
+
+<style>
+/* =========================================================
+   TRACIDUS PROFESSIONAL UI SYSTEM
+   Presentation-only layer. Analysis/API contracts preserved.
+   ========================================================= */
+:root {
+  --trc-max: 1240px;
+  --trc-border-soft: rgba(160, 220, 235, .10);
+  --trc-border: rgba(0, 234, 255, .16);
+  --trc-panel: rgba(6, 12, 23, .76);
+  --trc-panel-solid: rgba(5, 10, 19, .94);
+  --trc-copy: #d9f8fc;
+  --trc-copy-muted: rgba(205, 235, 242, .60);
+}
+
+body {
+  overflow-x: hidden;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+nav {
+  height: 68px !important;
+  background: rgba(2, 7, 14, .78) !important;
+  border-bottom: 1px solid var(--trc-border-soft) !important;
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+nav > div {
+  max-width: var(--trc-max);
+}
+
+nav a {
+  color: rgba(205, 240, 247, .58);
+  font-weight: 600;
+}
+
+nav a:hover { color: #dffcff; }
+
+header {
+  padding-top: 132px !important;
+  padding-bottom: 44px !important;
+}
+
+header > div { max-width: var(--trc-max); }
+
+.hero-title {
+  width: min(100%, 760px);
+  font-size: clamp(3rem, 5.5vw, 5.35rem) !important;
+  line-height: .94 !important;
+  letter-spacing: -.055em !important;
+}
+
+.hero-line {
+  display: block;
+  white-space: nowrap;
+}
+
+.hero-line-muted {
+  color: rgba(220, 248, 252, .74);
+  font-size: 1em;
+  letter-spacing: -.055em;
+  margin-bottom: .06em;
+}
+
+.hero-line-cyan {
+  color: var(--trc-cyan);
+  text-shadow: 0 0 26px rgba(0, 234, 255, .22);
+}
+
+.hero-line-primary {
+  color: #f0fdff;
+}
+
+header p {
+  margin-top: 24px !important;
+  color: var(--trc-copy-muted) !important;
+  max-width: 620px !important;
+  font-size: .98rem !important;
+}
+
+header .relative.h-\[420px\] {
+  min-height: 500px;
+}
+
+header [data-tilt] {
+  border-color: rgba(0, 234, 255, .14) !important;
+  background: linear-gradient(145deg, rgba(0,234,255,.045), rgba(5,10,20,.82) 60%, rgba(255,85,221,.018)) !important;
+  box-shadow: 0 28px 90px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+
+#app > div, #manifest, #how, #faq {
+  max-width: none;
+}
+
+#app > div { padding-top: 84px !important; }
+
+#input {
+  min-height: 190px;
+  font-family: "DM Sans", ui-sans-serif, system-ui !important;
+  font-size: .96rem !important;
+}
+
+#scanBtn {
+  min-width: 118px;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+
+#clearBtn {
+  color: rgba(220,248,252,.78);
+}
+
+#app .bg-cyberDeep\/70,
+#technical-intelligence,
+#manifest-scene {
+  background: linear-gradient(180deg, rgba(8,15,28,.72), rgba(4,9,18,.88)) !important;
+  border-color: var(--trc-border) !important;
+}
+
+#app h2, #app h3, #manifest h3, #how h3, #faq h3 {
+  text-shadow: none;
+  letter-spacing: -.025em;
+}
+
+#highlighted, #link-analysis {
+  font-family: "DM Sans", ui-sans-serif, system-ui !important;
+}
+
+#technical-intelligence {
+  margin-top: 30px;
+}
+
+#technical-intelligence .tech-stat {
+  border-color: rgba(160,220,235,.09);
+  background: rgba(3,8,16,.66);
+}
+
+#manifest {
+  padding-top: 88px !important;
+  padding-bottom: 88px !important;
+}
+
+#manifest-scene { height: 600px !important; }
+
+#how {
+  padding-top: 88px !important;
+  padding-bottom: 88px !important;
+}
+
+#faq {
+  padding-top: 88px !important;
+  padding-bottom: 96px !important;
+}
+
+.step {
+  background: rgba(5,10,19,.66) !important;
+  border-color: rgba(0,234,255,.10) !important;
+}
+
+footer {
+  background: rgba(2,5,11,.58);
+  color: rgba(190,230,238,.46) !important;
+}
+
+@media (max-width: 900px) {
+  header { padding-top: 104px !important; }
+  .hero-title { font-size: clamp(2.7rem, 8vw, 4.2rem) !important; }
+  header .relative.h-\[420px\] { min-height: 420px; height: 420px !important; }
+}
+
+@media (max-width: 640px) {
+  header { padding-top: 94px !important; }
+  .hero-title { font-size: clamp(2.25rem, 12vw, 3.25rem) !important; }
+  .hero-line { white-space: normal; }
+  .hero-line-muted { font-size: 1em; }
+  header .relative.h-\[420px\] { min-height: 350px; height: 350px !important; }
+  #manifest-scene { height: 430px !important; }
+}
+</style>
+
+
+<style>
+/* FINAL RESPONSIVE HERO FIX — keeps the three-line title inside its grid column */
+.hero-title {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  font-size: clamp(2.7rem, 4.25vw, 5.35rem) !important;
+}
+
+header .grid > div {
+  min-width: 0;
+}
+
+.hero-line {
+  max-width: 100%;
+}
+
+@media (min-width: 901px) and (max-width: 1280px) {
+  .hero-title {
+    font-size: clamp(2.65rem, 4.15vw, 4.45rem) !important;
+  }
+}
+
+@media (min-width: 1281px) {
+  .hero-title {
+    font-size: clamp(3.25rem, 4.25vw, 5.35rem) !important;
+  }
+}
+</style>
+
+<style>
+/* FINAL HERO TYPOGRAPHY — equal scale across all three lines, responsive by viewport */
+.hero-title {
+  font-size: clamp(3.5rem, 5.8vw, 6.35rem) !important;
+  line-height: .91 !important;
+  letter-spacing: -.06em !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible;
+}
+
+/* Every hero line uses the exact same type scale. */
+.hero-line,
+.hero-line-muted,
+.hero-line-cyan,
+.hero-line-primary {
+  font-size: 1em !important;
+  line-height: inherit !important;
+}
+
+.hero-line {
+  display: block;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Scale to the available two-column viewport without changing the layout. */
+@media (min-width: 901px) and (max-width: 1280px) {
+  .hero-title {
+    font-size: clamp(3.35rem, 5.25vw, 4.8rem) !important;
+  }
+}
+
+@media (min-width: 1281px) and (max-width: 1600px) {
+  .hero-title {
+    font-size: clamp(3.6rem, 5.05vw, 5.35rem) !important;
+  }
+}
+
+@media (min-width: 1601px) {
+  .hero-title {
+    font-size: clamp(4rem, 5.0vw, 6.35rem) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero-title {
+    font-size: clamp(3rem, 8.5vw, 4.8rem) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-title {
+    font-size: clamp(2.5rem, 11.5vw, 3.8rem) !important;
+  }
+  .hero-line { white-space: normal; }
+}
+</style>
+
 </head>
 <body class="bg-cyberDeep text-cyberBlue font-mono selection:bg-cyan-300/20 selection:text-cyberBlue/90">
 <canvas id="grid-canvas"></canvas>
@@ -126,11 +1111,21 @@ mark.neon { background: rgba(0,234,255,0.18); color:#e6fdff; padding:0 .15rem; b
 TRACIDUS <span class="text-cyan-300/80">.mapper</span>
 </div>
 <div class="ml-auto hidden md:flex items-center gap-4 text-cyberBlue/70 text-xs">
-<a href="#app" class="hover:text-cyberBlue">App</a>
-<a href="#how" class="hover:text-cyberBlue">How it works</a>
-<a href="#killchain" class="hover:text-cyberBlue">Kill Chain</a>
+<a href="#app" class="hover:text-cyberBlue">Scanner</a>
+<a href="#how" class="hover:text-cyberBlue">Methodology</a>
+<a href="#manifest" class="hover:text-cyberBlue">Manifestation</a>
 <a href="#faq" class="hover:text-cyberBlue">FAQ</a>
-<a href="#" id="soundToggle" class="px-3 py-1 rounded-full border border-cyan-400/30 hover:bg-cyan-400/10">FX</a>
+<button
+          id="nightModeToggle"
+          type="button"
+          class="theme-toggle"
+          aria-label="Toggle night mode"
+          aria-pressed="false"
+          title="Toggle Night Mode"
+        >
+          <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+          <span class="theme-toggle-label">Night</span>
+        </button>
 </div>
 </div>
 </nav>
@@ -139,21 +1134,22 @@ TRACIDUS <span class="text-cyan-300/80">.mapper</span>
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
 <div>
 <img src="/logo.png" class="w-20 mb-4" alt="TRACIDUS Logo">
-<h1 class="font-display font-extrabold leading-tight text-4xl md:text-6xl tracking-tight">
-The World's First<br>
-<span class="text-cyberBlue drop-shadow-[0_0_10px_rgba(0,234,255,0.6)]">
-Psychological Cybercrime Mapper
-</span>
+<h1 class="hero-title font-display font-extrabold tracking-tight" aria-label="The World's First Psychological Cybercrime Mapper">
+<span class="hero-line hero-line-muted">The World's First</span>
+<span class="hero-line hero-line-cyan">Psychological</span>
+<span class="hero-line hero-line-primary">Cybercrime Mapper</span>
 </h1>
-<p class="mt-4 text-cyberBlue/80 max-w-prose">Paste a suspicious message and watch TRACIDUS map persuasion vectors in real‑time, highlights, and an explainable breakdown. <span class="text-cyberBlue/60">Everything runs locally.</span></p>
+<div class="hero-description mt-4 max-w-prose" aria-label="TRACIDUS product description">
+<p class="hero-description-primary">TRACIDUS combines <span>technical threat intelligence</span> with <span>psychological analysis</span> to reveal not only what a threat is, but how it manipulates <span>human behavior</span>.</p>
+</div>
 <div class="mt-6 flex flex-wrap gap-3">
 <a href="#app" class="magnetic inline-flex items-center gap-2 bg-cyberBlue text-cyberDeep font-bold px-5 py-3 rounded-2xl shadow-[0_0_24px_#00eaff] hover:scale-[1.02] transition">⚡ Launch Scanner</a>
 <a href="#how" class="magnetic inline-flex items-center gap-2 px-5 py-3 rounded-2xl border border-cyan-400/30 hover:bg-cyan-400/10">👁 Explainer</a>
 </div>
 <div class="mt-6 flex items-center gap-3 text-xs text-cyberBlue/60">
-<span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> 100% local</span>
+<span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> Hybrid analysis</span>
 <span class="opacity-30">•</span>
-<span>Zero network calls</span>
+<span>URLs only for technical lookups</span>
 <span class="opacity-30">•</span>
 <span id="counterHero">0 scans on this device</span>
 </div>
@@ -167,10 +1163,12 @@ Psychological Cybercrime Mapper
 <div class="mt-4 h-[300px] rounded-xl overflow-hidden border border-cyan-400/20 bg-cyberDeep/60 flex items-center justify-center">
 <canvas id="radarCanvasHero" class="w-full h-full"></canvas>
 </div>
-<div class="mt-4 grid grid-cols-3 gap-3 text-center text-xs">
-<div class="rounded-xl border border-cyan-400/20 py-2 bg-cyberDeep/60">Latency <div class="font-bold text-cyberBlue">~0 ms</div></div>
-<div class="rounded-xl border border-cyan-400/20 py-2 bg-cyberDeep/60">Privacy <div class="font-bold text-emerald-300">Local</div></div>
-<div class="rounded-xl border border-cyan-400/20 py-2 bg-cyberDeep/60">Style <div class="font-bold text-cyberGlow">Neon</div></div>
+<div class="hero-vector-legend" aria-label="Psychological threat vectors">
+<div class="hero-vector-heading">PSYCHOLOGICAL THREAT VECTORS</div>
+<div id="heroVectorList" class="hero-vector-list">
+<span data-vector="Trust">TRUST</span><span data-vector="Reciprocity">RECIPROCITY</span><span data-vector="Authority">AUTHORITY</span><span data-vector="Consensus">CONSENSUS</span>
+<span data-vector="Intimidation">INTIMIDATION</span><span data-vector="Deception">DECEPTION</span><span data-vector="Urgency">URGENCY</span><span data-vector="Scarcity">SCARCITY</span>
+</div>
 </div>
 </div>
 </div>
@@ -192,14 +1190,12 @@ Psychological Cybercrime Mapper
 <div class="max-w-7xl mx-auto px-6 py-16 lg:py-20">
 <div class="space-y-4">
 <h2 class="font-display text-2xl md:text-3xl font-extrabold animate-glow">Input Terminal</h2>
-<textarea id="input" rows="8" class="w-full p-5 border-2 border-cyan-400/30 bg-cyberDeep/80 text-cyberBlue rounded-2xl resize-y focus:ring-2 focus:ring-cyberBlue/70 focus:outline-none transition-all" placeholder="⚡ Paste suspicious message here..."></textarea>
+<textarea id="input" rows="8" class="w-full p-5 border-2 border-cyan-400/30 bg-cyberDeep/80 text-cyberBlue rounded-2xl resize-y focus:ring-2 focus:ring-cyberBlue/70 focus:outline-none transition-all" placeholder="⚡ Paste a suspicious message, email, or URL here..."></textarea>
 <div class="flex flex-wrap gap-3 items-center">
 <button id="scanBtn" class="magnetic bg-cyberBlue text-cyberDeep px-5 py-2 rounded-2xl font-bold hover:scale-105 hover:shadow-[0_0_32px_#00eaff] transition">⚡ Scan</button>
 <button id="clearBtn" class="magnetic bg-transparent border border-cyan-400/40 px-5 py-2 rounded-2xl hover:bg-cyan-400/10 transition">🧹 Clear</button>
-<button id="sampleBtn" class="magnetic bg-emerald-400 text-black px-5 py-2 rounded-2xl font-bold hover:scale-105 hover:shadow-[0_0_24px_rgba(52,211,153,.6)] transition">🎯 Use Sample 1</button>
-<button id="sample2Btn" class="magnetic bg-violet-400 text-black px-5 py-2 rounded-2xl font-bold hover:scale-105 transition">🛰️ Use Sample 2</button>
 <div class="ml-auto flex items-center gap-2 text-xs text-cyberBlue/70">
-<span>Local Transparency Counter:</span>
+<span>Scan Counter:</span>
 <span id="counter" class="text-cyberGlow font-bold">0</span>
 </div>
 </div>
@@ -229,7 +1225,7 @@ Psychological Cybercrime Mapper
 </div>
 </div>
 <div class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6">
-<h3 class="font-display text-xl font-extrabold animate-glow">Overall Risk Score</h3>
+<h3 class="font-display text-xl font-extrabold animate-glow">Psychological Risk Score</h3>
 <div class="mt-3">
 <div class="w-full bg-cyberAccent/60 rounded-full h-3">
 <div id="riskBar" class="h-3 rounded-full transition-all" style="width:0%; background: linear-gradient(90deg,#11f7ff,#00a9ff);"></div>
@@ -239,10 +1235,57 @@ Psychological Cybercrime Mapper
 <div id="riskTag" class="text-xs px-2 py-1 rounded-full border border-cyan-400/40">Neutral</div>
 </div>
 <p id="riskNote" class="text-xs text-cyberBlue/70 mt-1">No severe indicators detected.</p>
+<div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+  <div class="rounded-xl border border-cyan-400/15 p-2 bg-cyberDeep/50">
+    <div class="text-cyberBlue/50">Psychological</div>
+    <div id="psychRiskValue" class="font-bold text-cyberBlue mt-1">--</div>
+  </div>
+  <div class="rounded-xl border border-cyan-400/15 p-2 bg-cyberDeep/50">
+    <div class="text-cyberBlue/50">Technical</div>
+    <div id="technicalVerdictValue" class="font-bold text-cyberBlue mt-1">Awaiting</div>
+  </div>
+  <div class="rounded-xl border border-cyan-400/15 p-2 bg-cyberDeep/50">
+    <div class="text-cyberBlue/50">Correlation</div>
+    <div id="correlationValue" class="font-bold text-emerald-300 mt-1">Awaiting</div>
+  </div>
 </div>
 </div>
 </div>
 </div>
+</div>
+
+<section id="technical-intelligence" class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6">
+  <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+    <div>
+      <h3 class="font-display text-xl font-extrabold animate-glow">Technical Intelligence</h3>
+      <p class="text-cyberBlue/70 text-sm mt-1">VirusTotal evidence for URLs extracted from the message. Technical evidence is kept separate from TRACIDUS psychological interpretation.</p>
+    </div>
+    <span id="technicalStatus" class="tech-pill border-cyan-400/20 text-cyberBlue/70">Awaiting URL analysis</span>
+  </div>
+
+  <div id="technical-overview" class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="tech-stat">
+      <div id="vtMalicious" class="tech-stat-value text-linkMalicious">--</div>
+      <div class="tech-stat-label">Malicious</div>
+    </div>
+    <div class="tech-stat">
+      <div id="vtSuspicious" class="tech-stat-value text-linkSuspicious">--</div>
+      <div class="tech-stat-label">Suspicious</div>
+    </div>
+    <div class="tech-stat">
+      <div id="vtHarmless" class="tech-stat-value text-linkSafe">--</div>
+      <div class="tech-stat-label">Harmless</div>
+    </div>
+    <div class="tech-stat">
+      <div id="vtUndetected" class="tech-stat-value text-cyberBlue">--</div>
+      <div class="tech-stat-label">Undetected</div>
+    </div>
+  </div>
+
+  <div id="vtSummary" class="mt-4 rounded-xl border border-cyan-400/15 bg-cyberDeep/50 p-3 text-sm text-cyberBlue/80">No technical intelligence requested yet.</div>
+  <div id="technical-links" class="mt-4 space-y-3"></div>
+</section>
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 <section class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6">
 <h3 class="font-display text-xl font-extrabold animate-glow">Explainability</h3>
@@ -252,6 +1295,14 @@ Psychological Cybercrime Mapper
 <section class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6">
 <h3 class="font-display text-xl font-extrabold animate-glow">Threat Summary</h3>
 <p id="summary" class="text-cyberBlue mt-2">No strong manipulation signals detected.</p>
+<div id="correlationPanel" class="correlation-box mt-4 rounded-2xl p-4">
+  <div class="flex items-center justify-between gap-3">
+    <span class="text-xs uppercase tracking-[0.18em] text-cyberBlue/50">TRACIDUS Correlation</span>
+    <span id="correlationLabel" class="tech-pill text-emerald-300 border-emerald-300/20">Awaiting evidence</span>
+  </div>
+  <p id="correlationNarrative" class="mt-2 text-sm text-cyberBlue/80">Run a scan to correlate the psychological signals with available technical evidence.</p>
+  <div id="correlationSignals" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"></div>
+</div>
 <h4 class="mt-4 font-medium">⚔ Action Tip</h4>
 <p class="text-cyberBlue/80">Never click unknown links. Verify the sender on a separate channel. Report requests for money or credentials immediately.</p>
 <div class="mt-4 text-sm">
@@ -293,7 +1344,7 @@ Click a node to see its full explanation and outcome.
 <section id="how" class="relative py-16 lg:py-24 border-t border-cyan-400/10">
 <div class="max-w-7xl mx-auto px-6">
 <h3 class="font-display text-2xl md:text-3xl font-extrabold text-center animate-glow">How TRACIDUS Thinks</h3>
-<div class="mt-8 grid md:grid-cols-3 gap-6">
+<div class="mt-8 grid md:grid-cols-2 lg:grid-cols-4 gap-6">
 <div class="step">
 <div class="step-badge">1</div>
 <h4 class="step-title">Linguistic Triage</h4>
@@ -301,115 +1352,24 @@ Click a node to see its full explanation and outcome.
 </div>
 <div class="step">
 <div class="step-badge">2</div>
-<h4 class="step-title">Vector Weighting</h4>
-<p class="step-text">Each vector is scored based on its severity and frequency, contributing to the overall risk calculation.</p>
+<h4 class="step-title">Technical Enrichment</h4>
+<p class="step-text">Extracted URLs are enriched with technical threat intelligence while the psychological layer remains independent and explainable.</p>
 </div>
 <div class="step">
 <div class="step-badge">3</div>
-<h4 class="step-title">Cinematic Report</h4>
-<p class="step-text">The final analysis is presented as a cinematic report, with highlights, a dynamic Psy-Net, and a clear breakdown.</p>
+<h4 class="step-title">Evidence Correlation</h4>
+<p class="step-text">Technical evidence is compared with psychological signals so TRACIDUS can distinguish convergence from uncertainty.</p>
+</div>
+<div class="step">
+<div class="step-badge">4</div>
+<h4 class="step-title">Human-Centric Report</h4>
+<p class="step-text">The result becomes an explainable assessment, attack narrative, manifestation tree, and actionable guidance.</p>
 </div>
 </div>
 </div>
 </section>
 
-<section id="killchain" class="relative py-16 lg:py-24 border-t border-cyan-400/10">
-<div class="max-w-7xl mx-auto px-6">
-<h3 class="font-display text-2xl md:text-3xl font-extrabold text-center animate-glow">The Phishing Kill Chain</h3>
-<div class="text-center mt-4 text-sm text-cyberBlue/70">A structured visualization of the cyber-attack lifecycle.</div>
-<div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-<div class="lg:col-span-1">
-<div id="kill-chain-tree" class="kill-chain-tree space-y-4">
-<div class="tree-node-item expanded" data-node="recon">
-<span class="arrow text-lg">›</span>
-<span class="tree-node-text">1. Reconnaissance</span>
-</div>
-<ul data-parent="recon">
-<li>
-<div class="tree-node-item" data-node="target">
-<span class="tree-node-text">Target Identification</span>
-</div>
-</li>
-<li>
-<div class="tree-node-item" data-node="credential">
-<span class="tree-node-text">Credential Harvesting</span>
-</div>
-</li>
-</ul>
-<div class="tree-node-item" data-node="weaponization">
-<span class="arrow text-lg">›</span>
-<span class="tree-node-text">2. Weaponization</span>
-</div>
-<ul class="hidden" data-parent="weaponization">
-<li>
-<div class="tree-node-item" data-node="deception">
-<span class="tree-node-text">Deception</span>
-</div>
-</li>
-<li>
-<div class="tree-node-item" data-node="lure">
-<span class="tree-node-text">Lure & Social Engineering</span>
-</div>
-</li>
-</ul>
-<div class="tree-node-item" data-node="delivery">
-<span class="arrow text-lg">›</span>
-<span class="tree-node-text">3. Delivery</span>
-</div>
-<ul class="hidden" data-parent="delivery">
-<li>
-<div class="tree-node-item" data-node="email">
-<span class="tree-node-text">Email</span>
-</div>
-</li>
-<li>
-<div class="tree-node-item" data-node="message">
-<span class="tree-node-text">Messaging App</span>
-</div>
-</li>
-</ul>
-<div class="tree-node-item" data-node="exploitation">
-<span class="arrow text-lg">›</span>
-<span class="tree-node-text">4. Exploitation</span>
-</div>
-<ul class="hidden" data-parent="exploitation">
-<li>
-<div class="tree-node-item" data-node="linkclick">
-<span class="tree-node-text">Link Click</span>
-</div>
-</li>
-<li>
-<div class="tree-node-item" data-node="fileopen">
-<span class="tree-node-text">File Open</span>
-</div>
-</li>
-</ul>
-<div class="tree-node-item" data-node="monetization">
-<span class="arrow text-lg">›</span>
-<span class="tree-node-text">5. Monetization</span>
-</div>
-<ul class="hidden" data-parent="monetization">
-<li>
-<div class="tree-node-item" data-node="finance">
-<span class="tree-node-text">Financial Loss</span>
-</div>
-</li>
-<li>
-<div class="tree-node-item" data-node="data">
-<span class="tree-node-text">Data Exfiltration</span>
-</div>
-</li>
-</ul>
-</div>
-</div>
-<div class="lg:col-span-2">
-<div id="kill-chain-details" class="h-full p-6 bg-cyberDeep/70 border border-cyan-400/20 rounded-2xl flex items-center justify-center">
-<p class="text-cyberBlue/60 text-center">Click a node on the left to learn more about each stage of the attack lifecycle.</p>
-</div>
-</div>
-</div>
-</div>
-</section>
+
 <section id="faq" class="py-16 lg:py-24">
 <div class="max-w-5xl mx-auto px-6">
 <h3 class="font-display text-2xl md:text-3xl font-extrabold text-center animate-glow">FAQ</h3>
@@ -418,7 +1378,7 @@ Click a node to see its full explanation and outcome.
 <summary class="cursor-pointer list-none flex items-center justify-between font-semibold">Does this send data anywhere?
 <span class="transition group-open:rotate-180">▾</span>
 </summary>
-<p class="mt-2 text-cyberBlue/80">No. The simulation runs entirely inside your browser. No data is ever transmitted or stored outside your device.</p>
+<p class="mt-2 text-cyberBlue/80">TRACIDUS keeps the message-analysis logic in your browser. When a URL is present, that extracted URL is sent to the TRACIDUS backend for technical intelligence, which securely queries VirusTotal. Your VirusTotal API key is never exposed to the browser.</p>
 </details>
 <details class="group rounded-2xl border border-cyan-400/20 p-4 bg-cyberDeep/60">
 <summary class="cursor-pointer list-none flex items-center justify-between font-semibold">Can I export results?
@@ -430,10 +1390,10 @@ Click a node to see its full explanation and outcome.
 <summary class="cursor-pointer list-none flex items-center justify-between font-semibold">How is link reputation determined?
 <span class="transition group-open:rotate-180">▾</span>
 </summary>
-<p class="mt-2 text-cyberBlue/80">For demonstration purposes, TRACIDUS uses a local, rule-based engine to simulate link analysis. It checks for common link shortening services, suspicious keywords, and domain patterns to generate a risk score. It does not perform live lookups.</p>
+<p class="mt-2 text-cyberBlue/80">TRACIDUS first applies its local URL heuristics and optional local AI. When a URL is available, the frontend also requests technical intelligence from the TRACIDUS backend, which checks VirusTotal and returns normalized evidence such as vendor detections, reputation, title, and related metadata.</p>
 </details>
 </div>
-<p class="text-center text-xs text-cyberBlue/60 mt-8">⚡ Simulation runs 100% locally in your browser. No data is sent anywhere. ⚡</p>
+<p class="text-center text-xs text-cyberBlue/60 mt-8">⚡ Psychological analysis runs in the browser; extracted URLs may be sent to the secure TRACIDUS backend for technical intelligence. ⚡</p>
 </div>
 </section>
 <footer class="border-t border-cyan-400/10 py-8 text-center text-cyberBlue/60 text-xs">Built with ❤️ for defenders. TRACIDUS Ultimate Edition</footer>
@@ -620,7 +1580,9 @@ matchesByCat[cat].push({ phrase: pat, count: local.length });
 }
 
 const links = extractLinks(s);
-const linkAnalysis = await analyzeLinks(links);
+const linkAnalysis = (typeof window.analyzeLinks === 'function')
+  ? await window.analyzeLinks(links)
+  : analyzeLinksFallback(links);
 
 const axes = ['trust','reciprocity','authority','consensus','intimidation','deception','urgency','scarcity'];
 const axisValues = axes.map(a => hitsByCat[a]||0);
@@ -720,7 +1682,7 @@ function extractLinks(text) {
 const urlRegex = /(https?:\/\/[^\s]+)/g;
 return (text.match(urlRegex) || []);
 }
-function analyzeLinks(links) {
+function analyzeLinksFallback(links) {
 const results = [];
 const suspiciousDomains = ['bit.ly', 'tinyurl.com', 'goo.gl', 'ow.ly', 't.co', 'drive.google.com', 'docs.google.com', 'sharepoint.com', 'dropbox.com'];
 const maliciousKeywords = ['login', 'verify', 'update', 'payment', 'security', 'password', 'sso', 'invoice', 'wire', 'transfer'];
@@ -796,7 +1758,21 @@ type: 'radar',
 data: { labels: LABELS, datasets: [{ data: [10,18,6,12,8,22,16,9], fill: true, backgroundColor: 'rgba(0,234,255,0.18)', borderColor: '#00eaff', pointBackgroundColor: '#00eaff', pointBorderColor: '#070b14' }]},
 options: { responsive:true, maintainAspectRatio:false, scales:{ r:{ beginAtZero:true, suggestedMax:100, grid:{ color:'rgba(0,234,255,0.15)'}, angleLines:{ color:'rgba(0,234,255,0.2)'}, pointLabels:{ display:false }, ticks:{ display:false } } }, plugins:{ legend:{ display:false } } }
 });
+updateHeroVectorLegend([10,18,6,12,8,22,16,9]);
 // ====== UI Helpers ======
+function updateHeroVectorLegend(values){
+  const list = document.getElementById('heroVectorList');
+  if (!list) return;
+  const numeric = values.map(v => Number(v) || 0);
+  const max = Math.max(0, ...numeric);
+  const hasSignal = numeric.some(v => v > 0);
+  const threshold = hasSignal ? Math.max(max * 0.72, max - 12) : Infinity;
+  list.querySelectorAll('[data-vector]').forEach((el, i) => {
+    const value = numeric[i] || 0;
+    el.classList.toggle('is-active', hasSignal && value >= threshold);
+  });
+}
+
 function setRiskUI(score){
 const bar = document.getElementById('riskBar');
 const scoreEl = document.getElementById('riskScore');
@@ -806,7 +1782,7 @@ bar.style.width = score + '%';
 bar.style.filter = `drop-shadow(0 0 12px rgba(0,234,255,${Math.min(1, score/60)}))`;
 scoreEl.textContent = score;
 let label = 'Neutral', noteText = 'No severe indicators detected.';
-if (score >= 80){ label='Critical'; noteText='High probability of phishing/social engineering. Do not engage.'; }
+if (score >= 80){ label='Critical'; noteText='Strong manipulation indicators are present. Verify through a trusted channel.'; }
 else if (score >= 60){ label='High'; noteText='Multiple strong indicators. Verify via trusted channel.'; }
 else if (score >= 40){ label='Elevated'; noteText='Some notable indicators. Proceed with caution.'; }
 else if (score > 0){ label='Low'; noteText='Minor indicators present.'; }
@@ -969,74 +1945,287 @@ return badges.length? badges.join(' · '): 'None yet. Keep scanning!';
 function renderLinkAnalysis(links) {
 const container = document.getElementById('link-analysis');
 container.innerHTML = '';
-if (links.length === 0) {
+if (!links || links.length === 0) {
 container.innerHTML = '<p class="text-cyberBlue/60">No links were found in the message.</p>';
 return;
 }
 
 for (const link of links) {
-const verdictClass = { 'Safe': 'text-linkSafe', 'Suspicious': 'text-linkSuspicious', 'Malicious': 'text-linkMalicious' }[link.verdict];
-const badgeClass = { 'Safe': 'border-linkSafe/30 text-linkSafe', 'Suspicious': 'border-linkSuspicious/30 text-linkSuspicious', 'Malicious': 'border-linkMalicious/30 text-linkMalicious' }[link.verdict];
+const verdictClass = { 'Safe': 'text-linkSafe', 'Suspicious': 'text-linkSuspicious', 'Malicious': 'text-linkMalicious' }[link.verdict] || 'text-cyberBlue';
+const badgeClass = { 'Safe': 'border-linkSafe/30 text-linkSafe', 'Suspicious': 'border-linkSuspicious/30 text-linkSuspicious', 'Malicious': 'border-linkMalicious/30 text-linkMalicious' }[link.verdict] || 'border-cyan-400/30 text-cyberBlue';
+const vt = link.technical;
+const vtLine = link.technicalAvailable && vt
+  ? `VirusTotal: ${Number(vt.malicious||0)} malicious · ${Number(vt.suspicious||0)} suspicious · ${Number(vt.harmless||0)} harmless · ${Number(vt.undetected||0)} undetected`
+  : (link.technicalError ? `VirusTotal unavailable: ${link.technicalError.message}` : 'VirusTotal: awaiting technical intelligence');
 
 const linkDiv = document.createElement('div');
 linkDiv.className = 'mb-4 p-3 border border-cyan-400/20 rounded-xl bg-cyberDark/50 transition-all hover:scale-[1.01]';
 linkDiv.innerHTML = `
-<div class="flex items-start justify-between">
-<span class="text-xs text-cyberBlue/80 break-all">${link.url}</span>
-<span class="text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-full border ${badgeClass}">${link.verdict}</span>
+<div class="flex items-start justify-between gap-3">
+  <span class="text-xs text-cyberBlue/80 break-all">${escapeHtml(link.url)}</span>
+  <div class="flex flex-wrap items-center justify-end gap-1">
+    <span class="text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-full border ${badgeClass}">${escapeHtml(link.verdict || 'Unknown')}</span>
+  </div>
 </div>
 <div class="mt-2 text-xs">
-<span class="font-semibold ${verdictClass}">Score: ${link.score}/100</span>
-<p class="text-cyberBlue/70 mt-1">${link.note}</p>
+  <span class="font-semibold ${verdictClass}">Local score: ${Number(link.score||0)}/100</span>
+  <p class="text-cyberBlue/70 mt-1">${escapeHtml(link.note || 'No strong local indicators.')}</p>
+  <div class="mt-2 rounded-lg border border-cyan-400/10 bg-cyberDeep/50 p-2 text-cyberBlue/75">${escapeHtml(vtLine)}</div>
 </div>
 `;
 container.appendChild(linkDiv);
 }
 }
-// ====== Kill Chain Logic ======
-const killChainDetails = {
-recon: 'The reconnaissance phase involves the attacker gathering information about the target to plan a future attack. This can include finding email addresses, employee names, and public information.',
-target: 'Attackers identify specific individuals or groups within an organization that they can exploit, often based on their roles or access to sensitive information.',
-credential: 'A key goal of reconnaissance is to find valid usernames, email formats, and public credentials to increase the chance of a successful attack.',
-weaponization: 'The attacker combines the collected information and a malicious payload (e.g., a link or file) to create a weaponized cyberattack, such as a phishing email.',
-deception: 'This is the use of misleading tactics, like fake sender addresses, to trick the recipient into believing the message is legitimate.',
-lure: 'The psychological bait used to entice the victim, such as appealing to urgency, authority, or reciprocity.',
-delivery: 'The weaponized payload is delivered to the target, most often via email, but can also be through social media or messaging apps.',
-email: 'The most common delivery method for phishing attacks.',
-message: 'Delivery via instant messaging services, which often have less stringent security filters.',
-exploitation: 'The moment the attack is executed. The victim clicks the malicious link or opens the infected file.',
-linkclick: 'The victim is redirected to a malicious site, where credentials can be harvested or malware can be delivered.',
-fileopen: 'The victim opens an infected document, which can trigger a script to download and install malware.',
-monetization: 'The final stage of the attack, where the attacker profits from the compromise, either through direct financial loss or by stealing and selling sensitive data.',
-finance: 'The attacker steals money directly from the victim or the victim\'s organization.',
-data: 'The attacker steals confidential data, which can then be sold, held for ransom, or used for further attacks.'
-};
-document.querySelectorAll('.tree-node-item').forEach(item => {
-item.addEventListener('click', () => {
-const node = item.dataset.node;
-const parentList = item.parentElement.nextElementSibling;
-const detailsContainer = document.getElementById('kill-chain-details');
-// Collapse other branches
-document.querySelectorAll('.tree-node-item.expanded').forEach(expandedItem => {
-if (expandedItem !== item) {
-expandedItem.classList.remove('expanded');
-const list = expandedItem.parentElement.nextElementSibling;
-if (list && list.tagName === 'UL') {
-list.classList.add('hidden');
+
+// ====== Technical intelligence integration ======
+const TRACIDUS_API_BASE_URL = String(window.TRACIDUS_API_BASE_URL || '').replace(/\/+$/, '');
+const technicalCache = new Map();
+const TECHNICAL_CACHE_TTL_MS = 10 * 60 * 1000;
+
+function technicalEndpoint(){
+return TRACIDUS_API_BASE_URL ? `${TRACIDUS_API_BASE_URL}/api/check-link` : '/api/check-link';
 }
-}
-});
-// Toggle this branch
-if (parentList && parentList.tagName === 'UL') {
-item.classList.toggle('expanded');
-parentList.classList.toggle('hidden');
-}
-// Update details panel
-detailsContainer.innerHTML = `<p class="text-cyberBlue/60 text-center">${killChainDetails[node]}</p>`;
-});
+
+async function fetchTechnicalIntel(url){
+const now = Date.now();
+const cached = technicalCache.get(url);
+if (cached && now - cached.timestamp < TECHNICAL_CACHE_TTL_MS) return cached.payload;
+
+const controller = new AbortController();
+const timeout = setTimeout(() => controller.abort(), 20000);
+try {
+const response = await fetch(technicalEndpoint(), {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+body: JSON.stringify({ url }),
+signal: controller.signal
 });
 
-// ====== App Logic (fixed runScan) ======
+const payload = await response.json().catch(() => null);
+if (!response.ok) {
+const error = new Error(payload?.error?.message || `Technical intelligence request failed (${response.status}).`);
+error.code = payload?.error?.code || 'TECHNICAL_REQUEST_FAILED';
+error.status = response.status;
+throw error;
+}
+
+technicalCache.set(url, { timestamp: Date.now(), payload });
+return payload;
+} catch (error) {
+if (error?.name === 'AbortError') {
+const timeoutError = new Error('Technical intelligence request timed out.');
+timeoutError.code = 'TECHNICAL_TIMEOUT';
+throw timeoutError;
+}
+throw error;
+} finally {
+clearTimeout(timeout);
+}
+}
+
+async function enrichTechnicalIntelligence(links, token){
+const enriched = [];
+const seen = new Set();
+
+for (const localLink of (links || [])) {
+if (token !== window.__tracidusScanToken) return null;
+if (seen.has(localLink.url)) continue;
+seen.add(localLink.url);
+
+try {
+const payload = await fetchTechnicalIntel(localLink.url);
+enriched.push({
+  ...localLink,
+  technicalAvailable: !!payload?.technical,
+  technical: payload?.technical || null,
+  technicalEvidence: Array.isArray(payload?.evidence) ? payload.evidence : [],
+  technicalProvider: payload?.provider || null,
+  technicalAssessment: payload?.assessment || null,
+  technicalAnalysis: payload?.analysis || null,
+  technicalError: null
+});
+} catch (error) {
+enriched.push({
+  ...localLink,
+  technicalAvailable: false,
+  technical: null,
+  technicalEvidence: [],
+  technicalProvider: null,
+  technicalAssessment: null,
+  technicalAnalysis: null,
+  technicalError: {
+    code: error?.code || 'TECHNICAL_UNAVAILABLE',
+    message: error?.message || 'Technical intelligence is unavailable.'
+  }
+});
+}
+}
+
+return enriched;
+}
+
+function getTechnicalAggregate(links){
+const available = (links || []).filter(l => l.technicalAvailable && l.technical);
+const malicious = available.reduce((sum,l)=>sum + Number(l.technical.malicious||0), 0);
+const suspicious = available.reduce((sum,l)=>sum + Number(l.technical.suspicious||0), 0);
+const harmless = available.reduce((sum,l)=>sum + Number(l.technical.harmless||0), 0);
+const undetected = available.reduce((sum,l)=>sum + Number(l.technical.undetected||0), 0);
+const timeout = available.reduce((sum,l)=>sum + Number(l.technical.timeout||0), 0);
+const reputationValues = available.map(l=>l.technical.reputation).filter(v=>typeof v === 'number' && Number.isFinite(v));
+const reputation = reputationValues.length ? Math.min(...reputationValues) : null;
+
+let verdict = 'Unavailable';
+let level = 'Unavailable';
+if (available.length) {
+if (malicious > 0) { verdict = 'Malicious detections'; level = 'High'; }
+else if (suspicious > 0) { verdict = 'Suspicious detections'; level = 'Elevated'; }
+else { verdict = 'No malicious detections observed'; level = 'No direct detection'; }
+}
+
+return { availableCount: available.length, malicious, suspicious, harmless, undetected, timeout, reputation, verdict, level };
+}
+
+function buildCorrelation(out){
+const psych = Number(out?.riskScore || 0);
+const tech = getTechnicalAggregate(out?.linkAnalysis || []);
+let label = 'No convergence';
+let narrative = 'Current evidence does not show a strong convergence between psychological and technical signals.';
+
+if (tech.level === 'Unavailable') {
+label = psych >= 60 ? 'Psychological signal only' : 'Technical evidence unavailable';
+narrative = psych >= 60
+  ? 'TRACIDUS detected meaningful manipulation patterns, but technical intelligence could not be confirmed for the extracted URL(s).'
+  : 'The psychological layer completed, but technical intelligence is currently unavailable.';
+} else if (tech.level === 'High' && psych >= 60) {
+label = 'Converging high risk';
+narrative = `Psychological risk (${psych}/100) aligns with VirusTotal malicious detections (${tech.malicious}). The two evidence streams reinforce the assessment.`;
+} else if (tech.level === 'High') {
+label = 'Technical evidence dominates';
+narrative = `VirusTotal returned ${tech.malicious} malicious detection(s), while the psychological layer is ${psych}/100. Treat the technical evidence as the stronger signal for this URL.`;
+} else if (tech.level === 'Elevated' && psych >= 60) {
+label = 'Converging elevated risk';
+narrative = `Psychological risk (${psych}/100) aligns with suspicious VirusTotal detections (${tech.suspicious}). The evidence streams point in the same direction, but do not by themselves establish compromise.`;
+} else if (tech.level === 'Elevated') {
+label = 'Technical suspicion';
+narrative = `VirusTotal returned ${tech.suspicious} suspicious detection(s), while the psychological layer is ${psych}/100. More verification is warranted.`;
+} else if (psych >= 60) {
+label = 'Psychological concern';
+narrative = `TRACIDUS found meaningful manipulation signals (${psych}/100), but VirusTotal did not return malicious or suspicious detections. Absence of detection is not proof of safety.`;
+} else {
+label = 'No strong convergence';
+narrative = 'Neither the psychological layer nor current VirusTotal results show strong high-risk evidence.';
+}
+
+return { ...tech, psychologicalRisk: psych, label, narrative };
+}
+
+function setTechnicalLoading(message='Querying VirusTotal technical intelligence…'){
+const status = document.getElementById('technicalStatus');
+const summary = document.getElementById('vtSummary');
+if (status) {
+status.textContent = 'Scanning';
+status.className = 'tech-pill border-cyan-400/20 text-cyan-200 animate-pulse';
+}
+if (summary) summary.textContent = message;
+['vtMalicious','vtSuspicious','vtHarmless','vtUndetected'].forEach(id=>{
+const el=document.getElementById(id); if(el) el.textContent='…';
+});
+}
+
+function renderTechnicalIntelligence(links){
+const status = document.getElementById('technicalStatus');
+const summary = document.getElementById('vtSummary');
+const list = document.getElementById('technical-links');
+const agg = getTechnicalAggregate(links);
+
+if (!links || !links.length) {
+status.textContent = 'No URLs found';
+status.className = 'tech-pill border-cyan-400/20 text-cyberBlue/60';
+summary.textContent = 'No URLs were extracted, so VirusTotal technical intelligence was not requested.';
+['vtMalicious','vtSuspicious','vtHarmless','vtUndetected'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='—'; });
+list.innerHTML='';
+return agg;
+}
+
+const failures = (links || []).filter(l=>!l.technicalAvailable);
+if (agg.availableCount) {
+status.textContent = failures.length ? 'Partial technical coverage' : 'Live technical intelligence';
+status.className = `tech-pill ${failures.length ? 'border-linkSuspicious/30 text-linkSuspicious' : 'border-emerald-300/20 text-emerald-300'}`;
+summary.textContent = `${agg.verdict}. ${agg.availableCount} URL${agg.availableCount===1?'':'s'} returned VirusTotal evidence.` + (failures.length ? ` ${failures.length} URL${failures.length===1?'':'s'} could not be enriched.` : '');
+} else {
+status.textContent='Technical intelligence unavailable';
+status.className='tech-pill border-linkSuspicious/30 text-linkSuspicious';
+summary.textContent='VirusTotal technical intelligence could not be retrieved. The existing local analysis remains available and has not been discarded.';
+}
+
+document.getElementById('vtMalicious').textContent = agg.availableCount ? agg.malicious : '—';
+document.getElementById('vtSuspicious').textContent = agg.availableCount ? agg.suspicious : '—';
+document.getElementById('vtHarmless').textContent = agg.availableCount ? agg.harmless : '—';
+document.getElementById('vtUndetected').textContent = agg.availableCount ? agg.undetected : '—';
+
+list.innerHTML='';
+for (const link of links) {
+const wrap=document.createElement('div');
+wrap.className='rounded-xl border border-cyan-400/15 bg-cyberDeep/50 p-4';
+if (!link.technicalAvailable) {
+wrap.innerHTML = `\n  <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-2">\n    <div class="text-xs text-cyberBlue/80 break-all">${escapeHtml(link.url)}</div>\n    <span class="tech-pill border-linkSuspicious/20 text-linkSuspicious">${escapeHtml(link.technicalError?.message || 'Unavailable')}</span>\n  </div>\n`;
+list.appendChild(wrap);
+continue;
+}
+
+const t=link.technical || {};
+const evidence=(link.technicalEvidence || []).map(e=>`<div class="tech-evidence-item">${escapeHtml(e.description || `${e.type || 'evidence'}: ${e.value ?? ''}`)}</div>`).join('');
+const meta=[];
+if (typeof t.reputation === 'number') meta.push(`Reputation: ${t.reputation}`);
+if (t.title) meta.push(`Title: ${t.title}`);
+if (t.main_brand) meta.push(`Brand: ${t.main_brand}`);
+if (t.timesSubmitted != null) meta.push(`Submissions: ${t.timesSubmitted}`);
+
+wrap.innerHTML = `\n<div class="flex flex-col md:flex-row md:items-start md:justify-between gap-2">\n  <div class="text-xs text-cyberBlue/80 break-all">${escapeHtml(link.url)}</div>\n  <span class="tech-pill ${Number(t.malicious||0)>0 ? 'border-linkMalicious/30 text-linkMalicious' : Number(t.suspicious||0)>0 ? 'border-linkSuspicious/30 text-linkSuspicious' : 'border-linkSafe/30 text-linkSafe'}">${Number(t.malicious||0)>0 ? 'Malicious signal' : Number(t.suspicious||0)>0 ? 'Suspicious signal' : 'No direct detection'}</span>\n</div>\n<div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">\n  <div><span class="text-cyberBlue/50">Malicious</span><div class="font-bold text-linkMalicious">${Number(t.malicious||0)}</div></div>\n  <div><span class="text-cyberBlue/50">Suspicious</span><div class="font-bold text-linkSuspicious">${Number(t.suspicious||0)}</div></div>\n  <div><span class="text-cyberBlue/50">Harmless</span><div class="font-bold text-linkSafe">${Number(t.harmless||0)}</div></div>\n  <div><span class="text-cyberBlue/50">Undetected</span><div class="font-bold text-cyberBlue">${Number(t.undetected||0)}</div></div>\n</div>\n${meta.length ? `<div class="mt-3 text-xs text-cyberBlue/60">${meta.map(escapeHtml).join(' · ')}</div>` : ''}\n${evidence ? `<details class="mt-3 text-xs"><summary class="cursor-pointer text-cyberBlue/70">Evidence returned by VirusTotal</summary><div class="mt-2 space-y-2 text-cyberBlue/70">${evidence}</div></details>` : ''}\n`;
+list.appendChild(wrap);
+}
+
+return agg;
+}
+
+function renderCorrelation(correlation){
+const label=document.getElementById('correlationLabel');
+const narrative=document.getElementById('correlationNarrative');
+const signals=document.getElementById('correlationSignals');
+const technicalVerdict=document.getElementById('technicalVerdictValue');
+const correlationValue=document.getElementById('correlationValue');
+const psychValue=document.getElementById('psychRiskValue');
+
+if (!correlation) return;
+psychValue.textContent = `${correlation.psychologicalRisk}/100`;
+technicalVerdict.textContent = correlation.level === 'Unavailable' ? 'Unavailable' : correlation.level;
+correlationValue.textContent = correlation.label;
+label.textContent = correlation.label;
+label.className = `tech-pill ${correlation.label.includes('high') || correlation.label.includes('Technical evidence dominates') ? 'border-linkMalicious/20 text-linkMalicious' : correlation.label.includes('elevated') || correlation.label.includes('suspicion') ? 'border-linkSuspicious/20 text-linkSuspicious' : 'border-emerald-300/20 text-emerald-300'}`;
+narrative.textContent = correlation.narrative;
+signals.innerHTML = `\n<div class="rounded-lg border border-cyan-400/10 bg-cyberDeep/50 p-2">Psychological: <strong>${correlation.psychologicalRisk}/100</strong></div>\n<div class="rounded-lg border border-cyan-400/10 bg-cyberDeep/50 p-2">VirusTotal: <strong>${escapeHtml(correlation.verdict)}</strong></div>\n`;
+}
+
+function resetTechnicalUI(){
+const status=document.getElementById('technicalStatus');
+const summary=document.getElementById('vtSummary');
+status.textContent='Awaiting URL analysis';
+status.className='tech-pill border-cyan-400/20 text-cyberBlue/70';
+summary.textContent='No technical intelligence requested yet.';
+document.getElementById('technical-links').innerHTML='';
+['vtMalicious','vtSuspicious','vtHarmless','vtUndetected'].forEach(id=>document.getElementById(id).textContent='--');
+document.getElementById('psychRiskValue').textContent='--';
+document.getElementById('technicalVerdictValue').textContent='Awaiting';
+document.getElementById('correlationValue').textContent='Awaiting';
+document.getElementById('correlationLabel').textContent='Awaiting evidence';
+document.getElementById('correlationLabel').className='tech-pill text-emerald-300 border-emerald-300/20';
+document.getElementById('correlationNarrative').textContent='Run a scan to correlate the psychological signals with available technical evidence.';
+document.getElementById('correlationSignals').innerHTML='';
+}
+
+// ====== App Logic ======
+window.__tracidusScanToken = 0;
+
 async function runScan(){
 const text = document.getElementById('input').value || '';
 if (!text.trim()){
@@ -1044,95 +2233,106 @@ alert('Please paste a message to scan.');
 return;
 }
 
-// Ensure scanTextDetailed can be async or sync (works in both cases)
+const token = ++window.__tracidusScanToken;
+setRiskUI(0);
+document.getElementById('psychRiskValue').textContent='Analyzing';
+document.getElementById('technicalVerdictValue').textContent='Awaiting';
+document.getElementById('correlationValue').textContent='Awaiting';
+document.getElementById('summary').textContent='Analyzing psychological signals…';
+document.getElementById('badges').textContent='Processing…';
+document.getElementById('explain').innerHTML='';
+document.getElementById('highlighted').textContent='Analyzing message…';
+document.getElementById('link-analysis').innerHTML='<p class="text-cyberBlue/60">Extracting and analyzing URLs locally…</p>';
+setTechnicalLoading('Local analysis is running first. Technical intelligence will appear separately.');
+
 let out;
 try {
 out = await scanTextDetailed(text);
 } catch (e) {
 console.error('scanTextDetailed failed:', e);
-// Fallback: try calling sync version if present
-try { out = scanTextDetailed(text); } catch (e2) { out = null; }
-}
-if (!out) {
-console.warn('No scan result produced. Aborting UI update.');
 return;
 }
+if (!out || token !== window.__tracidusScanToken) return;
 
-// Immediate visual feedback (radar + hero) so user sees results fast
+// Immediate local/psychological results remain available even if external intelligence fails.
 const arr = LABELS.map(l => out.scaled && out.scaled[l.toLowerCase()] ? out.scaled[l.toLowerCase()] : 0);
 radarChart.data.datasets[0].data = arr;
 radarChart.update();
 radarHero.data.datasets[0].data = arr.map(v=>Math.max(8, v*0.9));
 radarHero.update();
+updateHeroVectorLegend(arr);
 
-// Quick UI placeholders while highlight animation runs
-setRiskUI(0);
-document.getElementById('summary').textContent = 'Analyzing...';
-document.getElementById('badges').textContent = 'Processing...';
-document.getElementById('explain').innerHTML = '';
-document.getElementById('link-analysis').innerHTML = '<p class="text-cyberBlue/60">Analyzing links...</p>';
-
-// Animate highlight (non-blocking): when done, update panels & manifest
-animateHighlight(text, out.matchesByCat).then(() => {
-try {
-document.getElementById('summary').textContent = out.summary;
 setRiskUI(out.riskScore);
+document.getElementById('psychRiskValue').textContent = `${out.riskScore}/100`;
+document.getElementById('summary').textContent = out.summary;
+document.getElementById('badges').textContent = awardBadges(out.hitsByCat || {});
 renderExplain(out.matchesByCat || {});
 renderLinkAnalysis(out.linkAnalysis || []);
-document.getElementById('badges').textContent = awardBadges(out.hitsByCat || {});
-// persist counter
+
 const scans = (Number(localStorage.getItem('tracidus_scans')||'0') + 1);
 localStorage.setItem('tracidus_scans', String(scans));
 document.getElementById('counter').textContent = scans;
 document.getElementById('counterHero').textContent = scans + ' scans on this device';
-} catch (uiErr) {
-console.error('UI update after highlight failed:', uiErr);
-}
 
-// update last result + generate + render manifestation tree (safe)
+// Psychological/manifestation result is generated immediately and is never blocked by VT.
+window.__tracidusLast = { ...out, text, correlation: null };
 try {
-window.__tracidusLast = { ...out, text };
 window.__manifestationScenario = (typeof generateScenario === 'function') ? generateScenario(window.__tracidusLast, text) : null;
-if (window.__manifestationScenario && typeof renderManifestationScene === 'function') {
-renderManifestationScene();
-}
+if (window.__manifestationScenario && typeof renderManifestationScene === 'function') renderManifestationScene();
 } catch (genErr) {
-console.warn('Manifest generation/render after highlight failed:', genErr);
+console.warn('Manifest generation/render failed:', genErr);
 }
-});
 
-// Also generate & render manifest immediately (so tree appears quickly, even if highlight still animating)
-try {
-window.__tracidusLast = { ...out, text };
-window.__manifestationScenario = (typeof generateScenario === 'function') ? generateScenario(out, text) : null;
-if (window.__manifestationScenario && typeof renderManifestationScene === 'function') {
-renderManifestationScene();
+// Keep the cinematic highlighting asynchronous so the technical workflow is not blocked by animation.
+animateHighlight(text, out.matchesByCat).catch(err => console.warn('Highlight animation failed:', err));
+
+// Phase 2: technical intelligence through the secure backend.
+if (!out.linkAnalysis || out.linkAnalysis.length === 0) {
+const correlation = buildCorrelation(out);
+renderTechnicalIntelligence([]);
+renderCorrelation(correlation);
+window.__tracidusLast = { ...window.__tracidusLast, correlation };
+return;
 }
-} catch (earlyGenErr) {
-console.warn('Immediate manifest generation failed:', earlyGenErr);
+
+try {
+const enriched = await enrichTechnicalIntelligence(out.linkAnalysis, token);
+if (!enriched || token !== window.__tracidusScanToken) return;
+out.linkAnalysis = enriched;
+out.correlation = buildCorrelation(out);
+
+renderLinkAnalysis(out.linkAnalysis);
+renderTechnicalIntelligence(out.linkAnalysis);
+renderCorrelation(out.correlation);
+
+window.__tracidusLast = { ...out, text };
+} catch (technicalErr) {
+console.error('Technical intelligence enrichment failed:', technicalErr);
+if (token !== window.__tracidusScanToken) return;
+const correlation = buildCorrelation(out);
+out.correlation = correlation;
+renderTechnicalIntelligence(out.linkAnalysis || []);
+renderCorrelation(correlation);
+window.__tracidusLast = { ...out, text };
 }
 }
 
 document.getElementById('scanBtn').addEventListener('click', runScan);
 document.getElementById('clearBtn').addEventListener('click', () => {
+window.__tracidusScanToken++;
 document.getElementById('input').value = '';
 radarChart.data.datasets[0].data = Array(LABELS.length).fill(0);
 radarChart.update();
+radarHero.data.datasets[0].data = Array(LABELS.length).fill(8);
+radarHero.update();
+updateHeroVectorLegend([]);
 document.getElementById('summary').textContent = 'No strong manipulation signals detected.';
 setRiskUI(0);
 document.getElementById('explain').innerHTML='';
 document.getElementById('highlighted').innerHTML='';
 document.getElementById('link-analysis').innerHTML='<p class="text-cyberBlue/60">URLs found will be analyzed here.</p>';
-});
-document.getElementById('sampleBtn').addEventListener('click', () => {
-const sample = 'URGENT: Your bank account will be suspended. Click here to update your password now or you will face legal penalty. Respond within 24 hours. See our full terms at https://update-account.secure-bank.com/login?token=xyz123';
-document.getElementById('input').value = sample;
-runScan();
-});
-document.getElementById('sample2Btn').addEventListener('click', () => {
-const sample = 'Greetings, this is a final notification from the HR department regarding an urgent security update. We have detected suspicious login attempts on your account. To prevent termination of your access, you must login immediately via the link below. The new password policy is mandatory and has already been adopted by all your colleagues. You must act now. https://bit.ly/secure-login-portal';
-document.getElementById('input').value = sample;
-runScan();
+resetTechnicalUI();
+window.__tracidusLast = null;
 });
 // Export: PNG of radar
 document.getElementById('exportPngBtn').addEventListener('click', () => {
@@ -1153,7 +2353,9 @@ URL.revokeObjectURL(url);
 // Copy summary
 document.getElementById('copySummaryBtn').addEventListener('click', () => {
 const data = window.__tracidusLast;
-const summary = data ? `TRACIDUS Report:\nRisk Score: ${data.riskScore}/100\nSummary: ${data.summary}\n\nKey Findings:\n${Object.entries(data.hitsByCat).filter(([cat, count]) => count > 0).map(([cat, count]) => `- ${cat.charAt(0).toUpperCase() + cat.slice(1)}: ${count} hits`).join('\n')}` : 'Run a scan first.';
+const correlation = data?.correlation;
+const technical = correlation ? `\nTechnical Verdict: ${correlation.verdict}\nCorrelation: ${correlation.label}\nCorrelation Narrative: ${correlation.narrative}` : '';
+const summary = data ? `TRACIDUS Report:\nPsychological Risk: ${data.riskScore}/100\nSummary: ${data.summary}${technical}\n\nKey Findings:\n${Object.entries(data.hitsByCat || {}).filter(([cat, count]) => count > 0).map(([cat, count]) => `- ${cat.charAt(0).toUpperCase() + cat.slice(1)}: ${count} hits`).join('\n')}` : 'Run a scan first.';
 
 navigator.clipboard.writeText(summary).then(()=>{
 const btn = document.getElementById('copySummaryBtn');
@@ -1164,8 +2366,6 @@ setTimeout(()=>btn.textContent=old, 1200);
 // Init transparency counter
 document.getElementById('counter').textContent = Number(localStorage.getItem('tracidus_scans')||'0');
 document.getElementById('counterHero').textContent = Number(localStorage.getItem('tracidus_scans')||'0') + ' scans on this device';
-// Sound FX toggle placeholder (no sounds loaded by default)
-document.getElementById('soundToggle').addEventListener('click', (e)=>{ e.preventDefault(); const el=e.currentTarget; el.classList.toggle('bg-cyan-400/10'); el.textContent = el.textContent==='FX' ? 'FX: On' : 'FX'; });
 </script>
 
 <script>
@@ -1198,6 +2398,46 @@ ${body}
 <script src="./treeGenerator.js"></script>
 <script src="./treeRenderer.js"></script>
 
+
+
+<script>
+/* =========================================================
+   TRACIDUS NIGHT MODE
+   Presentation-only toggle; no analysis/API behavior changed.
+   ========================================================= */
+(() => {
+  const toggle = document.getElementById('nightModeToggle');
+  if (!toggle) return;
+
+  const icon = toggle.querySelector('.theme-toggle-icon');
+  const label = toggle.querySelector('.theme-toggle-label');
+  const storageKey = 'tracidus_night_mode';
+
+  const applyNightMode = (enabled) => {
+    document.body.classList.toggle('night-mode', enabled);
+    toggle.setAttribute('aria-pressed', String(enabled));
+    toggle.setAttribute('title', enabled ? 'Switch to standard mode' : 'Enable Night Mode');
+
+    if (icon) icon.textContent = enabled ? '☀' : '☾';
+    if (label) label.textContent = enabled ? 'Day' : 'Night';
+  };
+
+  let enabled = false;
+  try {
+    enabled = localStorage.getItem(storageKey) === '1';
+  } catch (_) {}
+
+  applyNightMode(enabled);
+
+  toggle.addEventListener('click', () => {
+    enabled = !enabled;
+    applyNightMode(enabled);
+    try {
+      localStorage.setItem(storageKey, enabled ? '1' : '0');
+    } catch (_) {}
+  });
+})();
+</script>
 
 </body>
 </html>

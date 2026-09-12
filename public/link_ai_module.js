@@ -1,37 +1,3 @@
-// link_ai_module.js
-
-// ================= FEATURE EXTRACTION =================
-function extractFeatures(url){
-    try {
-        const urlObj = new URL(url);
-
-        const letters = (url.match(/[a-zA-Z]/g) || []).length;
-        const digits = (url.match(/[0-9]/g) || []).length;
-        const specialChars = (url.match(/[^a-zA-Z0-9]/g) || []).length;
-
-        return [
-            url.length,
-            urlObj.hostname.length,
-            /^[0-9.]+$/.test(urlObj.hostname) ? 1 : 0,
-            urlObj.hostname.split('.').length - 1,
-            letters,
-            letters / url.length || 0,
-            digits,
-            digits / url.length || 0,
-            (url.match(/=/g) || []).length,
-            (url.match(/\?/g) || []).length,
-            (url.match(/&/g) || []).length,
-            specialChars,
-            specialChars / url.length || 0,
-            url.startsWith("https") ? 1 : 0
-        ];
-
-    } catch (e){
-        return Array(14).fill(0);
-    }
-}
-
-
 // ================= HELPER DETECTIONS =================
 
 // fake domain inside params
@@ -41,7 +7,6 @@ function hasFakeDomainPattern(url){
         const hostname = urlObj.hostname;
 
         const suspiciousPart = url.split(/[?=]/).slice(1).join(" ");
-
         const domainMatch = suspiciousPart.match(/\b([a-z0-9-]+\.(com|net|org|io|co))\b/i);
 
         if (domainMatch) {
@@ -53,17 +18,16 @@ function hasFakeDomainPattern(url){
     } catch { return false; }
 }
 
-
 // random garbage path
 function hasRandomPath(url){
     try {
         const path = new URL(url).pathname.replace(/\//g, "");
+
         if (path.length < 10) return false;
 
         return /[A-Z0-9]{10,}/.test(path);
     } catch { return false; }
 }
-
 
 // suspicious subdomain depth
 function hasSuspiciousSubdomain(url){
@@ -74,7 +38,6 @@ function hasSuspiciousSubdomain(url){
     } catch { return false; }
 }
 
-
 // brand impersonation
 function hasBrandImpersonation(url){
     const brands = ["paypal","bank","google","apple","amazon","microsoft"];
@@ -83,9 +46,9 @@ function hasBrandImpersonation(url){
     for (const b of brands){
         if (lower.includes(b)) return true;
     }
+
     return false;
 }
-
 
 // keyword detection
 function getKeywordScore(url){
@@ -105,25 +68,8 @@ function getKeywordScore(url){
 }
 
 
-// ================= AI =================
-async function analyzeLinkAI(url){
-    const features = extractFeatures(url);
-
-    try {
-        const res = await fetch("http://127.0.0.1:5000/predict", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ features })
-        });
-
-        return await res.json();
-    } catch {
-        return { prediction: 0, confidence: 0 };
-    }
-}
-
-
 // ================= MAIN PIPELINE =================
+
 async function analyzeLinksAI(links){
     const results = [];
 
@@ -162,12 +108,12 @@ async function analyzeLinksAI(links){
         }
 
         const keywordScore = getKeywordScore(link);
+
         if (keywordScore > 0){
             score += keywordScore * 10;
             reasons.push("Phishing keywords");
         }
 
-        // length + structure
         if (link.length > 100){
             score += 20;
             reasons.push("Long URL");
@@ -178,16 +124,8 @@ async function analyzeLinksAI(links){
             reasons.push("Too many hyphens");
         }
 
-        // ===== AI SUPPORT =====
-        const ai = await analyzeLinkAI(link);
-        const aiScore = Math.round(ai.confidence * 100);
-
-        if (ai.prediction === 1){
-            score += 30;
-            reasons.push("AI flagged");
-        }
-
         // ===== FINAL DECISION =====
+
         let verdict = "Safe";
 
         if (score >= 80){
@@ -211,4 +149,5 @@ async function analyzeLinksAI(links){
 
 
 // ================= EXPORT =================
+
 window.analyzeLinks = analyzeLinksAI;

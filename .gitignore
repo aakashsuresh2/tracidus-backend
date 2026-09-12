@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+node_modules/
+logs/
+.git-broken-backup/
+.git-broken-backup-2/
+PhiUSIIL_Phishing_URL_Dataset.csv
