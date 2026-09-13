@@ -45,10 +45,10 @@ cyberDeep: "#050812",
 cyberAccent: "#0f1a2f",
 cyberGlow: "#35f0ff",
 acid: "#8affc1",
-magenta: "#ff55dd",
+magenta: "#ff3b30",
 linkSafe: "#8affc1",
 linkSuspicious: "#ffc85a",
-linkMalicious: "#ff55dd"
+linkMalicious: "#ff3b30"
 },
 fontFamily: {
 display: ["DM Sans", "ui-sans-serif", "system-ui"],
@@ -176,7 +176,7 @@ mark.neon { background: rgba(0,234,255,0.18); color:#e6fdff; padding:0 .15rem; b
   --trc-muted: rgba(190, 240, 255, .62);
   --trc-cyan: #00eaff;
   --trc-green: #8affc1;
-  --trc-magenta: #ff55dd;
+  --trc-magenta: #ff3b30;
   --trc-radius: 22px;
   --trc-shadow: 0 18px 60px rgba(0, 0, 0, .24);
 }
@@ -187,7 +187,7 @@ body {
   min-height: 100vh;
   background:
     radial-gradient(circle at 12% 8%, rgba(0,234,255,.055), transparent 28%),
-    radial-gradient(circle at 88% 22%, rgba(255,85,221,.035), transparent 24%),
+    radial-gradient(circle at 88% 22%, rgba(255,59,48,.035), transparent 24%),
     var(--trc-bg);
   color: var(--trc-text);
   letter-spacing: .005em;
@@ -302,7 +302,7 @@ header [data-tilt] {
   inset: 10px !important;
   border-color: rgba(0,234,255,.18) !important;
   background:
-    linear-gradient(145deg, rgba(0,234,255,.065), rgba(8,14,27,.78) 55%, rgba(255,85,221,.025)) !important;
+    linear-gradient(145deg, rgba(0,234,255,.065), rgba(8,14,27,.78) 55%, rgba(255,59,48,.025)) !important;
   box-shadow:
     0 30px 100px rgba(0,0,0,.3),
     0 0 50px rgba(0,234,255,.055) !important;
@@ -915,7 +915,7 @@ header .relative.h-\[420px\] {
 
 header [data-tilt] {
   border-color: rgba(0, 234, 255, .14) !important;
-  background: linear-gradient(145deg, rgba(0,234,255,.045), rgba(5,10,20,.82) 60%, rgba(255,85,221,.018)) !important;
+  background: linear-gradient(145deg, rgba(0,234,255,.045), rgba(5,10,20,.82) 60%, rgba(255,59,48,.018)) !important;
   box-shadow: 0 28px 90px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.025) !important;
 }
 
@@ -1100,6 +1100,203 @@ header .grid > div {
 }
 </style>
 
+
+<style>
+.context-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.context-card{border:1px solid rgba(0,234,255,.12);background:rgba(3,8,16,.58);border-radius:14px;padding:14px}.context-label{font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(190,240,255,.42)}.context-value{margin-top:5px;font-size:.84rem;line-height:1.6;color:#dffcff}.context-list{margin-top:8px;display:grid;gap:8px}.context-row{border-left:2px solid rgba(0,234,255,.18);padding-left:10px;font-size:.78rem;line-height:1.55;color:rgba(220,248,252,.78)}.engine-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(0,234,255,.16);border-radius:999px;padding:4px 8px;font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.engine-dot{width:6px;height:6px;border-radius:50%;background:#00eaff;box-shadow:0 0 10px #00eaff}.engine-badge.standby .engine-dot{background:#ffc85a;box-shadow:0 0 10px rgba(255,200,90,.45)}.engine-badge.complete .engine-dot{background:#8affc1;box-shadow:0 0 10px rgba(138,255,193,.45)}.engine-badge.error .engine-dot{background:#ff3b30;box-shadow:0 0 10px rgba(255,59,48,.45)}.evidence-level{display:inline-flex;padding:3px 7px;border-radius:999px;border:1px solid rgba(0,234,255,.15);font-size:.62rem;font-weight:800}.phi-note{font-size:.7rem;line-height:1.6;color:rgba(190,240,255,.48)}@media(max-width:700px){.context-grid{grid-template-columns:1fr}}
+</style>
+
+<style>
+/* =========================================================
+   TRACIDUS CORRELATED EVIDENCE UI
+   Presentation layer only. Existing analysis calculations stay intact.
+   ========================================================= */
+.trc-threat-card,
+.trc-correlation-dashboard {
+  position: relative;
+  overflow: hidden;
+}
+
+.trc-threat-card::before,
+.trc-correlation-dashboard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,234,255,.28), transparent);
+  pointer-events: none;
+}
+
+.trc-severity-scale {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  color: rgba(190,240,255,.42);
+  font-family: "Sono", ui-monospace, monospace;
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+.trc-severity-scale span:nth-child(2),
+.trc-severity-scale span:nth-child(3) {
+  text-align: center;
+}
+.trc-severity-scale span:last-child { text-align: right; }
+
+.trc-severity-track {
+  position: relative;
+  height: 9px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg,
+      rgba(138,255,193,.16) 0%,
+      rgba(138,255,193,.16) 25%,
+      rgba(255,200,90,.18) 25%,
+      rgba(255,200,90,.18) 50%,
+      rgba(255,145,85,.18) 50%,
+      rgba(255,145,85,.18) 75%,
+      rgba(255,59,48,.22) 75%,
+      rgba(255,59,48,.22) 100%);
+  border: 1px solid rgba(0,234,255,.08);
+}
+
+.trc-severity-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8affc1 0%, #ffc85a 48%, #ff9155 74%, #ff3b30 100%);
+  box-shadow: 0 0 16px rgba(0,234,255,.16);
+  transition: width .7s cubic-bezier(.22,1,.36,1);
+}
+
+.trc-severity-marker {
+  position: absolute;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  transform: translate(-50%,-50%);
+  background: #dffcff;
+  border: 2px solid #06101c;
+  box-shadow: 0 0 0 1px rgba(0,234,255,.55), 0 0 18px rgba(0,234,255,.55);
+  transition: left .7s cubic-bezier(.22,1,.36,1);
+}
+
+.trc-level-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: .34rem .72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0,234,255,.2);
+  background: rgba(0,234,255,.045);
+  color: #bffaff;
+  font-family: "Sono", ui-monospace, monospace;
+  font-size: .67rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.trc-level-low {
+  color: #8affc1;
+  border-color: rgba(138,255,193,.28);
+  background: rgba(138,255,193,.05);
+}
+.trc-level-medium {
+  color: #ffc85a;
+  border-color: rgba(255,200,90,.28);
+  background: rgba(255,200,90,.05);
+}
+.trc-level-high {
+  color: #ffb07a;
+  border-color: rgba(255,145,85,.30);
+  background: rgba(255,145,85,.055);
+}
+.trc-level-critical {
+  color: #ff6b63;
+  border-color: rgba(255,59,48,.30);
+  background: rgba(255,59,48,.055);
+}
+
+.correlation-metric {
+  padding: 15px 16px;
+  border: 1px solid rgba(0,234,255,.10);
+  border-radius: 15px;
+  background: rgba(3,8,16,.58);
+}
+
+.correlation-metric-title {
+  color: #dffcff;
+  font-family: "DM Sans", ui-sans-serif, system-ui;
+  font-size: .86rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+}
+
+.correlation-metric-note {
+  margin-top: 4px;
+  max-width: 720px;
+  color: rgba(190,240,255,.48);
+  font-size: .68rem;
+  line-height: 1.55;
+}
+
+.correlation-metric-value {
+  color: #00eaff;
+  font-family: "Sono", ui-monospace, monospace;
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
+.correlation-track {
+  height: 7px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(7,19,34,.95);
+  border: 1px solid rgba(0,234,255,.08);
+}
+
+.correlation-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #00eaff, #8affc1);
+  box-shadow: 0 0 15px rgba(0,234,255,.25);
+  transition: width .65s cubic-bezier(.22,1,.36,1);
+}
+
+#correlationAlignmentBar {
+  background: linear-gradient(90deg, #00a9ff, #00eaff, #8affc1);
+}
+
+#correlationNarrative {
+  line-height: 1.7;
+}
+
+.correlation-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(190,240,255,.44);
+}
+
+.correlation-key i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(0,234,255,.7);
+  box-shadow: 0 0 8px rgba(0,234,255,.35);
+}
+
+@media (max-width: 640px) {
+  .trc-severity-scale { font-size: .5rem; }
+  .correlation-metric { padding: 13px; }
+}
+</style>
+
 </head>
 <body class="bg-cyberDeep text-cyberBlue font-mono selection:bg-cyan-300/20 selection:text-cyberBlue/90">
 <canvas id="grid-canvas"></canvas>
@@ -1107,7 +1304,7 @@ header .grid > div {
 <div id="noise"></div>
 <div class="cursor"></div>
 <div class="cursor-dot"></div>
-<div aria-hidden class="pointer-events-none fixed inset-x-0 -top-24 h-48 blur-3xl" style="background:radial-gradient(60% 80% at 50% 0%, rgba(0,234,255,.25), transparent 60%), radial-gradient(40% 60% at 15% 0%, rgba(138,255,193,.18), transparent 60%), radial-gradient(40% 60% at 85% 0%, rgba(255,85,221,.18), transparent 60%)"></div>
+<div aria-hidden class="pointer-events-none fixed inset-x-0 -top-24 h-48 blur-3xl" style="background:radial-gradient(60% 80% at 50% 0%, rgba(0,234,255,.25), transparent 60%), radial-gradient(40% 60% at 15% 0%, rgba(138,255,193,.18), transparent 60%), radial-gradient(40% 60% at 85% 0%, rgba(255,59,48,.18), transparent 60%)"></div>
 <nav class="fixed top-0 inset-x-0 z-50 backdrop-blur-md border-b border-cyan-400/10 bg-cyberDeep/50">
 <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
 <div class="flex items-center gap-2 font-display font-extrabold tracking-wide text-[15px]">
@@ -1228,30 +1425,21 @@ TRACIDUS <span class="text-cyan-300/80">.mapper</span>
 <canvas id="radarCanvas" class="w-full h-full"></canvas>
 </div>
 </div>
-<div class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6">
-<h3 class="font-display text-xl font-extrabold animate-glow">Psychological Risk Score</h3>
-<div class="mt-3">
-<div class="w-full bg-cyberAccent/60 rounded-full h-3">
-<div id="riskBar" class="h-3 rounded-full transition-all" style="width:0%; background: linear-gradient(90deg,#11f7ff,#00a9ff);"></div>
+<div class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6 trc-threat-card">
+<h3 class="font-display text-xl font-extrabold animate-glow">Threat Level</h3>
+<p class="text-cyberBlue/60 text-xs mt-1">A simple view of how concerning the combined evidence is.</p>
+<div class="mt-4 trc-severity-scale" aria-label="Threat level scale">
+  <span>LOW</span><span>MEDIUM</span><span>HIGH</span><span>CRITICAL</span>
 </div>
-<div class="mt-2 flex items-center gap-3">
-<div id="riskScore" class="text-4xl font-extrabold transition-all">0</div>
-<div id="riskTag" class="text-xs px-2 py-1 rounded-full border border-cyan-400/40">Neutral</div>
+<div class="trc-severity-track mt-2">
+  <div id="threatLevelBar" class="trc-severity-fill"></div>
+  <div class="trc-severity-marker" id="threatLevelMarker"></div>
 </div>
-<p id="riskNote" class="text-xs text-cyberBlue/70 mt-1">No severe indicators detected.</p>
-<div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-  <div class="rounded-xl border border-cyan-400/15 p-2 bg-cyberDeep/50">
-    <div class="text-cyberBlue/50">Psychological</div>
-    <div id="psychRiskValue" class="font-bold text-cyberBlue mt-1">--</div>
-  </div>
-  <div class="rounded-xl border border-cyan-400/15 p-2 bg-cyberDeep/50">
-    <div class="text-cyberBlue/50">Technical</div>
-    <div id="technicalVerdictValue" class="font-bold text-cyberBlue mt-1">Awaiting</div>
-  </div>
-  <div class="rounded-xl border border-cyan-400/15 p-2 bg-cyberDeep/50">
-    <div class="text-cyberBlue/50">Correlation</div>
-    <div id="correlationValue" class="font-bold text-emerald-300 mt-1">Awaiting</div>
-  </div>
+<div class="mt-4 flex items-end gap-3">
+  <div id="threatLevelScore" class="text-4xl font-extrabold transition-all">—</div>
+  <div id="threatLevelTag" class="trc-level-tag">Awaiting analysis</div>
+</div>
+<p id="threatLevelNote" class="text-xs text-cyberBlue/70 mt-2">Scan a message to see how the available evidence lines up.</p>
 </div>
 </div>
 </div>
@@ -1290,6 +1478,103 @@ TRACIDUS <span class="text-cyan-300/80">.mapper</span>
   <div id="technical-links" class="mt-4 space-y-3"></div>
 </section>
 
+<section id="correlated-analysis" class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6 trc-correlation-dashboard">
+  <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+    <div>
+      <h3 class="font-display text-xl font-extrabold animate-glow">Correlated Analysis</h3>
+      <p class="text-cyberBlue/70 text-sm mt-1">TRACIDUS compares human-influence signals with technical evidence and shows how strongly they support the same conclusion.</p>
+    </div>
+    <span id="correlationLabel" class="tech-pill text-emerald-300 border-emerald-300/20">Awaiting evidence</span>
+  </div>
+
+  <div class="mt-5 space-y-4">
+    <div class="correlation-metric">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <div class="correlation-metric-title">Psychological signals</div>
+          <div id="correlationPsychText" class="correlation-metric-note">No influence signals measured yet.</div>
+        </div>
+        <strong id="correlationPsychValue" class="correlation-metric-value">—</strong>
+      </div>
+      <div class="correlation-track"><div id="correlationPsychBar" class="correlation-fill"></div></div>
+    </div>
+
+    <div class="correlation-metric">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <div class="correlation-metric-title">Technical evidence</div>
+          <div id="correlationTechText" class="correlation-metric-note">No technical evidence returned yet.</div>
+        </div>
+        <strong id="correlationTechValue" class="correlation-metric-value">—</strong>
+      </div>
+      <div class="correlation-track"><div id="correlationTechBar" class="correlation-fill"></div></div>
+    </div>
+
+    <div class="correlation-metric">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <div class="correlation-metric-title">Evidence alignment</div>
+          <div id="correlationAlignmentText" class="correlation-metric-note">Waiting for both evidence streams.</div>
+        </div>
+        <strong id="correlationAlignmentValue" class="correlation-metric-value">—</strong>
+      </div>
+      <div class="correlation-track"><div id="correlationAlignmentBar" class="correlation-fill"></div></div>
+    </div>
+  </div>
+
+  <div id="correlationNarrative" class="mt-4 rounded-xl border border-cyan-400/10 bg-cyberDeep/40 p-4 text-sm text-cyberBlue/80">
+    Run a scan to compare the available evidence.
+  </div>
+
+  <div class="mt-4 flex flex-wrap items-center gap-2 text-xs">
+    <span class="text-cyberBlue/45">How to read it:</span>
+    <span class="correlation-key"><i></i>More filled = stronger signal</span>
+    <span class="correlation-key"><i></i>Alignment = how closely the two evidence streams point in the same direction</span>
+  </div>
+</section>
+
+<section id="psychological-influence" class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6">
+  <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+    <div>
+      <h3 class="font-display text-xl font-extrabold animate-glow">Psychological Influence</h3>
+      <p class="text-cyberBlue/70 text-sm mt-1">Measures the intensity of observed influence signals — not the probability that something is malicious.</p>
+    </div>
+    <span id="psychInfluenceTag" class="tech-pill text-cyberBlue border-cyan-400/20">Awaiting analysis</span>
+  </div>
+  <div class="mt-5">
+    <div class="w-full bg-cyberAccent/60 rounded-full h-3">
+      <div id="riskBar" class="h-3 rounded-full transition-all" style="width:0%; background: linear-gradient(90deg,#11f7ff,#00a9ff);"></div>
+    </div>
+    <div class="mt-3 flex items-end gap-3">
+      <div id="riskScore" class="text-4xl font-extrabold transition-all">0</div>
+      <div class="text-sm text-cyberBlue/60 pb-1">/100 intensity</div>
+    </div>
+    <p id="riskNote" class="text-xs text-cyberBlue/70 mt-1">No influence signals measured yet.</p>
+  </div>
+</section>
+<section id="context-intelligence" class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6">
+  <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+    <div>
+      <h3 class="font-display text-xl font-extrabold animate-glow">Context Intelligence</h3>
+      <p class="text-cyberBlue/70 text-sm mt-1">Phi-4-mini context layer — contextual interpretation only. It cannot override deterministic TRACIDUS results.</p>
+    </div>
+    <span id="contextEngineStatus" class="engine-badge standby"><span class="engine-dot"></span>STANDBY</span>
+  </div>
+  <div class="mt-4 context-grid">
+    <div class="context-card"><div class="context-label">Contextual Verdict</div><div id="ctxVerdict" class="context-value">Not analyzed.</div></div>
+    <div class="context-card"><div class="context-label">Threat Type</div><div id="ctxThreatType" class="context-value">Not analyzed.</div></div>
+    <div class="context-card"><div class="context-label">Likely Intent</div><div id="ctxLikelyIntent" class="context-value">Not analyzed.</div></div>
+    <div class="context-card"><div class="context-label">Recommended Action</div><div id="ctxRecommendedAction" class="context-value">Not analyzed.</div></div>
+  </div>
+  <div class="mt-4">
+    <div class="context-label">Key Findings</div>
+    <div id="ctxFindings" class="context-list">
+      <div class="context-row">Contextual interpretation will appear here after the deterministic evidence is complete.</div>
+    </div>
+  </div>
+  <div class="mt-4 rounded-xl border border-cyan-400/10 bg-cyberDeep/40 p-3 phi-note"><strong>Architecture:</strong> TRACIDUS deterministic analysis → completed evidence → Phi-4-mini contextual interpretation. TRACIDUS remains authoritative for threat level, scores, technical intelligence, psychological analysis, and correlation.</div>
+</section>
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 <section class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6">
 <h3 class="font-display text-xl font-extrabold animate-glow">Explainability</h3>
@@ -1299,24 +1584,15 @@ TRACIDUS <span class="text-cyan-300/80">.mapper</span>
 <section class="bg-cyberDeep/70 border border-cyan-400/30 rounded-2xl p-6">
 <h3 class="font-display text-xl font-extrabold animate-glow">Threat Summary</h3>
 <p id="summary" class="text-cyberBlue mt-2">No strong manipulation signals detected.</p>
-<div id="correlationPanel" class="correlation-box mt-4 rounded-2xl p-4">
-  <div class="flex items-center justify-between gap-3">
-    <span class="text-xs uppercase tracking-[0.18em] text-cyberBlue/50">TRACIDUS Correlation</span>
-    <span id="correlationLabel" class="tech-pill text-emerald-300 border-emerald-300/20">Awaiting evidence</span>
-  </div>
-  <p id="correlationNarrative" class="mt-2 text-sm text-cyberBlue/80">Run a scan to correlate the psychological signals with available technical evidence.</p>
-  <div id="correlationSignals" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"></div>
-</div>
 <h4 class="mt-4 font-medium">⚔ Action Tip</h4>
 <p class="text-cyberBlue/80">Never click unknown links. Verify the sender on a separate channel. Report requests for money or credentials immediately.</p>
 <div class="mt-4 text-sm">
 <span class="font-medium">Badges:</span>
 <span id="badges" class="text-cyberBlue/80">None yet. Keep scanning!</span>
 </div>
-<div class="mt-4 grid grid-cols-3 gap-3">
-<button id="exportPngBtn" class="magnetic bg-blue-500 text-black px-3 py-2 rounded-xl font-bold hover:scale-105">🖼️ Download Chart</button>
-<button id="exportJsonBtn" class="magnetic bg-teal-400 text-black px-3 py-2 rounded-xl font-bold hover:scale-105">📄 Export JSON</button>
-<button id="copySummaryBtn" class="magnetic bg-cyberBlue text-black px-3 py-2 rounded-xl font-bold hover:scale-105">📋 Copy Summary</button>
+<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+<button id="exportPngBtn" class="magnetic w-full bg-blue-500 text-black px-3 py-2 rounded-xl font-bold hover:scale-105 transition">🖼️ Download Chart</button>
+<button id="copySummaryBtn" class="magnetic w-full bg-cyberBlue text-black px-3 py-2 rounded-xl font-bold hover:scale-105 transition">📋 Copy Summary</button>
 </div>
 </section>
 </div>
@@ -1352,7 +1628,7 @@ Click a node to see its full explanation and outcome.
 <div class="step">
 <div class="step-badge">1</div>
 <h4 class="step-title">Linguistic Triage</h4>
-<p class="step-text">Our engine scans for key phrases, grammatical patterns, and tone to identify psychological vectors.</p>
+<p class="step-text">The deterministic layer extracts observable signals; contextual interpretation is kept separate from the mathematical decision layer.</p>
 </div>
 <div class="step">
 <div class="step-badge">2</div>
@@ -1367,7 +1643,7 @@ Click a node to see its full explanation and outcome.
 <div class="step">
 <div class="step-badge">4</div>
 <h4 class="step-title">Human-Centric Report</h4>
-<p class="step-text">The result becomes an explainable assessment, attack narrative, manifestation tree, and actionable guidance.</p>
+<p class="step-text">The result separates technical evidence, psychological interpretation, behavioral inference, uncertainty, and actionable guidance.</p>
 </div>
 </div>
 </div>
@@ -1382,19 +1658,19 @@ Click a node to see its full explanation and outcome.
 <summary class="cursor-pointer list-none flex items-center justify-between font-semibold">Does this send data anywhere?
 <span class="transition group-open:rotate-180">▾</span>
 </summary>
-<p class="mt-2 text-cyberBlue/80">TRACIDUS keeps the message-analysis logic in your browser. When a URL is present, that extracted URL is sent to the TRACIDUS backend for technical intelligence, which securely queries VirusTotal. Your VirusTotal API key is never exposed to the browser.</p>
+<p class="mt-2 text-cyberBlue/80">TRACIDUS keeps the deterministic presentation layer in the browser. Extracted URLs may be sent to the TRACIDUS backend for technical intelligence. The Phi-4-mini context engine is designed to run behind the backend so model infrastructure and credentials are never exposed in the browser.</p>
 </details>
 <details class="group rounded-2xl border border-cyan-400/20 p-4 bg-cyberDeep/60">
 <summary class="cursor-pointer list-none flex items-center justify-between font-semibold">Can I export results?
 <span class="transition group-open:rotate-180">▾</span>
 </summary>
-<p class="mt-2 text-cyberBlue/80">Yes. You can download the radar chart as a PNG, export a full JSON report of the analysis, or simply copy a summary to your clipboard.</p>
+<p class="mt-2 text-cyberBlue/80">Yes. You can download the radar chart as a PNG or copy a concise summary of the analysis to your clipboard.</p>
 </details>
 <details class="group rounded-2xl border border-cyan-400/20 p-4 bg-cyberDeep/60">
 <summary class="cursor-pointer list-none flex items-center justify-between font-semibold">How is link reputation determined?
 <span class="transition group-open:rotate-180">▾</span>
 </summary>
-<p class="mt-2 text-cyberBlue/80">TRACIDUS first applies its local URL heuristics and optional local AI. When a URL is available, the frontend also requests technical intelligence from the TRACIDUS backend, which checks VirusTotal and returns normalized evidence such as vendor detections, reputation, title, and related metadata.</p>
+<p class="mt-2 text-cyberBlue/80">TRACIDUS separates artifact analysis from technical enrichment. Technical intelligence is retrieved through the backend. The Phi-4-mini context layer is a separate interpretation layer and does not determine technical maliciousness.</p>
 </details>
 </div>
 <p class="text-center text-xs text-cyberBlue/60 mt-8">⚡ Psychological analysis runs in the browser; extracted URLs may be sent to the secure TRACIDUS backend for technical intelligence. ⚡</p>
@@ -1778,20 +2054,26 @@ function updateHeroVectorLegend(values){
 }
 
 function setRiskUI(score){
-const bar = document.getElementById('riskBar');
-const scoreEl = document.getElementById('riskScore');
-const tag = document.getElementById('riskTag');
-const note = document.getElementById('riskNote');
-bar.style.width = score + '%';
-bar.style.filter = `drop-shadow(0 0 12px rgba(0,234,255,${Math.min(1, score/60)}))`;
-scoreEl.textContent = score;
-let label = 'Neutral', noteText = 'No severe indicators detected.';
-if (score >= 80){ label='Critical'; noteText='Strong manipulation indicators are present. Verify through a trusted channel.'; }
-else if (score >= 60){ label='High'; noteText='Multiple strong indicators. Verify via trusted channel.'; }
-else if (score >= 40){ label='Elevated'; noteText='Some notable indicators. Proceed with caution.'; }
-else if (score > 0){ label='Low'; noteText='Minor indicators present.'; }
-tag.textContent = label; note.textContent = noteText;
+  const bar = document.getElementById('riskBar');
+  const scoreEl = document.getElementById('riskScore');
+  const note = document.getElementById('riskNote');
+  const tag = document.getElementById('psychInfluenceTag');
+  const value = Math.max(0, Math.min(100, Number(score) || 0));
+  if (bar) {
+    bar.style.width = value + '%';
+    bar.style.filter = `drop-shadow(0 0 12px rgba(0,234,255,${Math.min(1, value/60)}))`;
+  }
+  if (scoreEl) scoreEl.textContent = value;
+  let label = 'Low intensity';
+  let noteText = 'Few influence signals were observed.';
+  if (value >= 80){ label='Very strong'; noteText='A large number of influence signals were observed.'; }
+  else if (value >= 60){ label='Strong'; noteText='Several strong influence signals were observed.'; }
+  else if (value >= 40){ label='Moderate'; noteText='Some notable influence signals were observed.'; }
+  else if (value > 0){ label='Low intensity'; noteText='A small number of influence signals were observed.'; }
+  if (tag) tag.textContent = label;
+  if (note) note.textContent = noteText;
 }
+
 function categoryCard(cat, items){
 const pretty = cat[0].toUpperCase()+cat.slice(1);
 const color = CAT_COLOR[cat] || '#bdeeff';
@@ -1955,9 +2237,21 @@ return;
 }
 
 for (const link of links) {
-const verdictClass = { 'Safe': 'text-linkSafe', 'Suspicious': 'text-linkSuspicious', 'Malicious': 'text-linkMalicious' }[link.verdict] || 'text-cyberBlue';
-const badgeClass = { 'Safe': 'border-linkSafe/30 text-linkSafe', 'Suspicious': 'border-linkSuspicious/30 text-linkSuspicious', 'Malicious': 'border-linkMalicious/30 text-linkMalicious' }[link.verdict] || 'border-cyan-400/30 text-cyberBlue';
+/*
+  The Link Dissection verdict must reflect the strongest available evidence.
+  If live technical intelligence is available, VirusTotal evidence takes
+  precedence over the local heuristic so the UI can never say "Safe" while
+  the technical layer has already detected malicious/suspicious activity.
+*/
 const vt = link.technical;
+const technicalVerdict = link.technicalAvailable && vt
+  ? (Number(vt.malicious||0) > 0 ? 'Malicious'
+    : Number(vt.suspicious||0) > 0 ? 'Suspicious'
+    : null)
+  : null;
+const displayVerdict = technicalVerdict || link.verdict || 'Unknown';
+const verdictClass = { 'Safe': 'text-linkSafe', 'Suspicious': 'text-linkSuspicious', 'Malicious': 'text-linkMalicious' }[displayVerdict] || 'text-cyberBlue';
+const badgeClass = { 'Safe': 'border-linkSafe/30 text-linkSafe', 'Suspicious': 'border-linkSuspicious/30 text-linkSuspicious', 'Malicious': 'border-linkMalicious/30 text-linkMalicious' }[displayVerdict] || 'border-cyan-400/30 text-cyberBlue';
 const vtLine = link.technicalAvailable && vt
   ? `VirusTotal: ${Number(vt.malicious||0)} malicious · ${Number(vt.suspicious||0)} suspicious · ${Number(vt.harmless||0)} harmless · ${Number(vt.undetected||0)} undetected`
   : (link.technicalError ? `VirusTotal unavailable: ${link.technicalError.message}` : 'VirusTotal: awaiting technical intelligence');
@@ -1968,11 +2262,11 @@ linkDiv.innerHTML = `
 <div class="flex items-start justify-between gap-3">
   <span class="text-xs text-cyberBlue/80 break-all">${escapeHtml(link.url)}</span>
   <div class="flex flex-wrap items-center justify-end gap-1">
-    <span class="text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-full border ${badgeClass}">${escapeHtml(link.verdict || 'Unknown')}</span>
+    <span class="text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-full border ${badgeClass}">${escapeHtml(displayVerdict)}</span>
   </div>
 </div>
 <div class="mt-2 text-xs">
-  <span class="font-semibold ${verdictClass}">Local score: ${Number(link.score||0)}/100</span>
+  <span class="font-semibold ${verdictClass}">Local indicators: ${Number(link.score||0)}/100</span>
   <p class="text-cyberBlue/70 mt-1">${escapeHtml(link.note || 'No strong local indicators.')}</p>
   <div class="mt-2 rounded-lg border border-cyan-400/10 bg-cyberDeep/50 p-2 text-cyberBlue/75">${escapeHtml(vtLine)}</div>
 </div>
@@ -2070,57 +2364,331 @@ return enriched;
 
 function getTechnicalAggregate(links){
 const available = (links || []).filter(l => l.technicalAvailable && l.technical);
+
 const malicious = available.reduce((sum,l)=>sum + Number(l.technical.malicious||0), 0);
 const suspicious = available.reduce((sum,l)=>sum + Number(l.technical.suspicious||0), 0);
 const harmless = available.reduce((sum,l)=>sum + Number(l.technical.harmless||0), 0);
 const undetected = available.reduce((sum,l)=>sum + Number(l.technical.undetected||0), 0);
 const timeout = available.reduce((sum,l)=>sum + Number(l.technical.timeout||0), 0);
-const reputationValues = available.map(l=>l.technical.reputation).filter(v=>typeof v === 'number' && Number.isFinite(v));
+const reputationValues = available
+  .map(l=>l.technical.reputation)
+  .filter(v=>typeof v === 'number' && Number.isFinite(v));
 const reputation = reputationValues.length ? Math.min(...reputationValues) : null;
+
+/*
+  TRACIDUS technical interpretation:
+  VirusTotal counts are evidence, not a probability and not a direct
+  Critical/High switch. The engine deliberately requires corroboration
+  before assigning Critical.
+
+  "strongSignals" are only counted when the backend has supplied evidence
+  that describes a concrete technical property. This keeps the frontend
+  conservative instead of inventing intelligence that VT did not return.
+*/
+function technicalSignals(link){
+  const t = link?.technical || {};
+  const evidence = Array.isArray(link?.technicalEvidence) ? link.technicalEvidence : [];
+  const rawParts = [];
+
+  const pushValue = (value) => {
+    if (value == null) return;
+    if (typeof value === 'string') rawParts.push(value);
+    else if (typeof value === 'number' || typeof value === 'boolean') rawParts.push(String(value));
+    else {
+      try { rawParts.push(JSON.stringify(value)); } catch (_) {}
+    }
+  };
+
+  evidence.forEach(e => {
+    pushValue(e?.type);
+    pushValue(e?.description);
+    pushValue(e?.value);
+    pushValue(e?.name);
+    pushValue(e?.category);
+  });
+  pushValue(link?.technicalAssessment);
+  pushValue(link?.technicalAnalysis);
+  pushValue(t?.assessment);
+  pushValue(t?.verdict);
+  pushValue(t?.category);
+  pushValue(t?.categories);
+
+  const corpus = rawParts.join(' ').toLowerCase();
+
+  const flags = {
+    phishing: /\bphish(?:ing|ed)?\b|\bcredential[-\s]?harvest/i.test(corpus),
+    malware: /\bmalware\b|\btrojan\b|\bransomware\b|\bexploit(?:ed|ation)?\b|\bpayload\b/i.test(corpus),
+    redirect: /\bredirect(?:ed|ion)?\b|\bfinal\s+url\b|\bdestination\s+url\b/i.test(corpus),
+    brand: /\bbrand\s+impersonat(?:ion|ing|ed)?\b|\btargeted\s+brand\b/i.test(corpus),
+    maliciousContent: /\bmalicious\s+(?:content|download|file|payload)\b/i.test(corpus)
+  };
+
+  const explicitStrong = [
+    t?.confirmed_malicious === true,
+    t?.confirmedMalicious === true,
+    t?.confirmed_phishing === true,
+    t?.confirmedPhishing === true,
+    String(t?.verdict || '').toLowerCase() === 'confirmed malicious',
+    String(t?.assessment || '').toLowerCase() === 'confirmed malicious',
+    String(link?.technicalAssessment || '').toLowerCase() === 'confirmed malicious'
+  ].some(Boolean);
+
+  const corroborating = Object.values(flags).filter(Boolean).length;
+  return { ...flags, corroborating, explicitStrong };
+}
+
+const perUrl = available.map(link => {
+  const t = link.technical || {};
+  const m = Math.max(0, Number(t.malicious || 0));
+  const s = Math.max(0, Number(t.suspicious || 0));
+  const h = Math.max(0, Number(t.harmless || 0));
+  const u = Math.max(0, Number(t.undetected || 0));
+  const classifiedTotal = m + s + h + u;
+  const maliciousRatio = classifiedTotal ? m / classifiedTotal : 0;
+  const suspiciousRatio = classifiedTotal ? s / classifiedTotal : 0;
+  const signals = technicalSignals(link);
+
+  /*
+    Evidence strength is intentionally not "m / total * 100".
+    Small isolated detections stay below the strong-evidence band.
+    Consistent detections and concrete technical findings raise the score.
+  */
+  let score = 0;
+
+  if (m > 0) {
+    /*
+      A malicious result is meaningful, but the score starts conservatively.
+      Consensus raises it; the ratio provides context rather than becoming
+      the entire decision.
+    */
+    score = 35 + Math.min(25, m * 6) + Math.min(15, maliciousRatio * 100);
+    if (m >= 2) score += 8;
+    if (m >= 5) score += 6;
+  } else if (s > 0) {
+    score = 25 + Math.min(15, s * 5) + Math.min(15, suspiciousRatio * 50);
+  } else {
+    score = 8;
+  }
+
+  if (signals.phishing) score += 15;
+  if (signals.malware) score += 15;
+  if (signals.redirect) score += 10;
+  if (signals.brand) score += 8;
+  if (signals.maliciousContent) score += 8;
+  if (signals.explicitStrong) score = Math.max(score, 90);
+
+  if (typeof t.reputation === 'number' && Number.isFinite(t.reputation) && t.reputation < 0) {
+    score += Math.min(8, Math.abs(t.reputation) / 10);
+  }
+
+  score = Math.max(0, Math.min(100, Math.round(score)));
+
+  let state = 'No direct detection';
+  if (signals.explicitStrong) {
+    state = 'Confirmed technical evidence';
+  } else if (m >= 2 || (m === 1 && signals.corroborating >= 1)) {
+    state = 'Credible malicious evidence';
+  } else if (m === 1) {
+    state = 'Isolated malicious signal';
+  } else if (s > 0) {
+    state = 'Suspicious evidence';
+  }
+
+  return {
+    url: link.url,
+    score,
+    state,
+    malicious: m,
+    suspicious: s,
+    maliciousRatio,
+    suspiciousRatio,
+    corroboratingSignals: signals.corroborating,
+    explicitStrong: signals.explicitStrong,
+    phishing: signals.phishing,
+    malware: signals.malware,
+    redirect: signals.redirect,
+    brand: signals.brand,
+    maliciousContent: signals.maliciousContent
+  };
+});
+
+const strongest = perUrl.reduce((best, item) => {
+  if (!best || item.score > best.score) return item;
+  return best;
+}, null);
+
+const anyConfirmed = perUrl.some(x => x.explicitStrong);
+const anyCredibleMalicious = perUrl.some(x => x.state === 'Credible malicious evidence' || x.state === 'Confirmed technical evidence');
+const anyIsolatedMalicious = perUrl.some(x => x.state === 'Isolated malicious signal');
+const anySuspicious = perUrl.some(x => x.state === 'Suspicious evidence');
+
+/*
+  CRITICAL TECHNICAL GATE
+  -----------------------
+  1. Explicit backend-confirmed malicious/phishing verdict => Critical.
+  2. Five or more VirusTotal engines reporting the SAME URL as malicious
+     => Critical, unconditionally.
+
+  The >= 5 rule is intentionally absolute: once five or more independent
+  VirusTotal engine results classify the same URL as malicious, the URL has
+  reached TRACIDUS's Critical technical evidence threshold. The local
+  heuristic score, psychological score, and corroboration count MUST NOT
+  downgrade that result.
+*/
+const criticalTechnical = perUrl.some(x =>
+  x.explicitStrong ||
+  x.malicious >= 5
+);
 
 let verdict = 'Unavailable';
 let level = 'Unavailable';
+
 if (available.length) {
-if (malicious > 0) { verdict = 'Malicious detections'; level = 'High'; }
-else if (suspicious > 0) { verdict = 'Suspicious detections'; level = 'Elevated'; }
-else { verdict = 'No malicious detections observed'; level = 'No direct detection'; }
+  if (criticalTechnical) {
+    verdict = 'Strongly corroborated malicious evidence';
+    level = 'Critical';
+  } else if (anyCredibleMalicious) {
+    verdict = 'Credible malicious evidence';
+    level = 'High';
+  } else if (anyIsolatedMalicious) {
+    verdict = 'Isolated malicious signal';
+    level = 'Caution';
+  } else if (anySuspicious) {
+    verdict = 'Suspicious evidence';
+    level = 'Elevated';
+  } else {
+    verdict = 'No malicious or suspicious detections observed';
+    level = 'No direct detection';
+  }
 }
 
-return { availableCount: available.length, malicious, suspicious, harmless, undetected, timeout, reputation, verdict, level };
+return {
+  availableCount: available.length,
+  malicious,
+  suspicious,
+  harmless,
+  undetected,
+  timeout,
+  reputation,
+  verdict,
+  level,
+  technicalEvidenceScore: strongest ? strongest.score : 0,
+  technicalState: strongest ? strongest.state : 'Unavailable',
+  criticalTechnical,
+  anyConfirmed,
+  perUrl
+};
 }
 
 function buildCorrelation(out){
-const psych = Number(out?.riskScore || 0);
+const psych = Math.max(0, Math.min(100, Number(out?.riskScore || 0)));
 const tech = getTechnicalAggregate(out?.linkAnalysis || []);
-let label = 'No convergence';
-let narrative = 'Current evidence does not show a strong convergence between psychological and technical signals.';
+
+let label = 'No strong convergence';
+let narrative = 'The available evidence does not show a strong combined threat signal.';
+let alignment = 0;
 
 if (tech.level === 'Unavailable') {
-label = psych >= 60 ? 'Psychological signal only' : 'Technical evidence unavailable';
-narrative = psych >= 60
-  ? 'TRACIDUS detected meaningful manipulation patterns, but technical intelligence could not be confirmed for the extracted URL(s).'
-  : 'The psychological layer completed, but technical intelligence is currently unavailable.';
-} else if (tech.level === 'High' && psych >= 60) {
-label = 'Converging high risk';
-narrative = `Psychological risk (${psych}/100) aligns with VirusTotal malicious detections (${tech.malicious}). The two evidence streams reinforce the assessment.`;
-} else if (tech.level === 'High') {
-label = 'Technical evidence dominates';
-narrative = `VirusTotal returned ${tech.malicious} malicious detection(s), while the psychological layer is ${psych}/100. Treat the technical evidence as the stronger signal for this URL.`;
-} else if (tech.level === 'Elevated' && psych >= 60) {
-label = 'Converging elevated risk';
-narrative = `Psychological risk (${psych}/100) aligns with suspicious VirusTotal detections (${tech.suspicious}). The evidence streams point in the same direction, but do not by themselves establish compromise.`;
-} else if (tech.level === 'Elevated') {
-label = 'Technical suspicion';
-narrative = `VirusTotal returned ${tech.suspicious} suspicious detection(s), while the psychological layer is ${psych}/100. More verification is warranted.`;
-} else if (psych >= 60) {
-label = 'Psychological concern';
-narrative = `TRACIDUS found meaningful manipulation signals (${psych}/100), but VirusTotal did not return malicious or suspicious detections. Absence of detection is not proof of safety.`;
+  label = psych >= 60 ? 'Psychological signal only' : 'Technical evidence unavailable';
+  narrative = psych >= 60
+    ? `TRACIDUS detected strong influence signals (${psych}/100), but technical intelligence could not be retrieved. No technical conclusion is being invented.`
+    : 'The psychological analysis completed, but technical intelligence is currently unavailable.';
 } else {
-label = 'No strong convergence';
-narrative = 'Neither the psychological layer nor current VirusTotal results show strong high-risk evidence.';
+  const technical = Math.max(0, Math.min(100, Number(tech.technicalEvidenceScore || 0)));
+
+  /*
+    Alignment is semantic rather than "100 - absolute score difference".
+    Similar numbers do not prove that two evidence streams are related.
+  */
+  if (tech.level === 'Critical' && psych >= 60) alignment = 90;
+  else if ((tech.level === 'High' || tech.level === 'Caution') && psych >= 60) alignment = 80;
+  else if (tech.level === 'High' && psych >= 40) alignment = 68;
+  else if (tech.level === 'Elevated' && psych >= 60) alignment = 70;
+  else if (tech.level === 'Elevated' && psych >= 40) alignment = 55;
+  else if (tech.level === 'No direct detection' && psych >= 60) alignment = 25;
+  else alignment = 15;
+
+  if (tech.level === 'Critical' && psych >= 60) {
+    label = 'Converging critical evidence';
+    narrative = `Strong technical evidence is corroborated by high psychological influence signals (${psych}/100). The evidence streams reinforce a high-confidence threat assessment.`;
+  } else if (tech.level === 'High' && psych >= 60) {
+    label = 'Converging high risk';
+    narrative = `Credible malicious evidence was detected (${tech.malicious} malicious detection${tech.malicious === 1 ? '' : 's'}), alongside strong psychological influence signals (${psych}/100).`;
+  } else if (tech.level === 'High') {
+    label = 'Technical evidence dominates';
+    narrative = `Credible malicious evidence was detected (${tech.malicious} malicious detection${tech.malicious === 1 ? '' : 's'}). The technical evidence is the primary reason for the elevated threat assessment.`;
+  } else if (tech.level === 'Caution') {
+    label = 'Malicious signal — limited corroboration';
+    narrative = `A malicious detection was returned by VirusTotal, but the available evidence is not sufficiently corroborated for a higher-confidence technical classification. TRACIDUS still recommends avoiding interaction.`;
+  } else if (tech.level === 'Elevated' && psych >= 60) {
+    label = 'Converging suspicious evidence';
+    narrative = `Suspicious technical evidence (${tech.suspicious} detection${tech.suspicious === 1 ? '' : 's'}) coincides with strong psychological influence signals (${psych}/100).`;
+  } else if (tech.level === 'Elevated') {
+    label = 'Suspicious technical evidence';
+    narrative = `VirusTotal returned ${tech.suspicious} suspicious detection${tech.suspicious === 1 ? '' : 's'}. Current evidence is concerning but does not establish maliciousness with high confidence.`;
+  } else if (psych >= 60) {
+    label = 'Psychological concern';
+    narrative = `TRACIDUS found strong influence signals (${psych}/100), while current technical intelligence shows no malicious or suspicious detections. No detection is not proof of safety.`;
+  } else {
+    label = 'No strong convergence';
+    narrative = 'Neither evidence stream currently shows a strong threat signal.';
+  }
 }
 
-return { ...tech, psychologicalRisk: psych, label, narrative };
+const technical = Math.max(0, Math.min(100, Number(tech.technicalEvidenceScore || 0)));
+
+/*
+  Final threat level gates:
+  Critical = explicit backend confirmation OR >=5 malicious VirusTotal
+             detections for the same URL.
+  High = credible malicious evidence OR strong evidence in another layer.
+  Medium = suspicious/isolated evidence or moderate psychological concern.
+  Low = little meaningful evidence.
+
+  CRITICAL is a hard gate. Once criticalTechnical is true, no psychological
+  score, local score, alignment value, or presentation score may downgrade it.
+*/
+let threat = 'Low';
+let threatScore = Math.max(10, Math.round(Math.max(psych, technical) * 0.72));
+
+if (tech.criticalTechnical) {
+  threat = 'Critical';
+  threatScore = Math.max(90, Math.round(Math.max(technical, (psych + technical + alignment) / 3)));
+} else if (
+  tech.level === 'High' ||
+  technical >= 65 ||
+  psych >= 70 ||
+  (technical >= 50 && psych >= 50 && alignment >= 60)
+) {
+  threat = 'High';
+  threatScore = Math.max(70, Math.min(89, Math.round((technical * 0.62) + (psych * 0.28) + (alignment * 0.10))));
+} else if (
+  tech.level === 'Caution' ||
+  tech.level === 'Elevated' ||
+  psych >= 40
+) {
+  threat = 'Medium';
+  threatScore = Math.max(40, Math.min(64, Math.round((technical * 0.60) + (psych * 0.30) + (alignment * 0.10))));
+} else {
+  threat = 'Low';
+  threatScore = Math.max(10, Math.min(39, Math.round((technical * 0.65) + (psych * 0.25) + (alignment * 0.10))));
+}
+
+let action = 'NO SIGNIFICANT THREAT DETECTED';
+if (threat === 'Critical') action = 'DO NOT INTERACT';
+else if (tech.criticalTechnical || tech.level === 'High' || tech.level === 'Caution') action = 'DO NOT INTERACT';
+else if (tech.level === 'Elevated' || psych >= 40) action = 'USE CAUTION';
+
+return {
+  ...tech,
+  psychologicalRisk: psych,
+  alignment,
+  label,
+  narrative,
+  threat,
+  threatScore,
+  action
+};
 }
 
 function setTechnicalLoading(message='Querying VirusTotal technical intelligence…'){
@@ -2192,39 +2760,386 @@ list.appendChild(wrap);
 return agg;
 }
 
-function renderCorrelation(correlation){
-const label=document.getElementById('correlationLabel');
-const narrative=document.getElementById('correlationNarrative');
-const signals=document.getElementById('correlationSignals');
-const technicalVerdict=document.getElementById('technicalVerdictValue');
-const correlationValue=document.getElementById('correlationValue');
-const psychValue=document.getElementById('psychRiskValue');
+function getCorrelationPresentation(correlation){
+  const psych = Math.max(0, Math.min(100, Number(correlation?.psychologicalRisk) || 0));
+  const technical = Math.max(0, Math.min(100, Number(correlation?.technicalEvidenceScore) || 0));
+  const alignment = Math.max(0, Math.min(100, Number(correlation?.alignment) || 0));
+  const threat = correlation?.threat || 'Low';
+  const threatScore = Math.max(0, Math.min(100, Number(correlation?.threatScore) || 0));
+  return { psych, technical, alignment, threat, threatScore, action: correlation?.action || '' };
+}
 
-if (!correlation) return;
-psychValue.textContent = `${correlation.psychologicalRisk}/100`;
-technicalVerdict.textContent = correlation.level === 'Unavailable' ? 'Unavailable' : correlation.level;
-correlationValue.textContent = correlation.label;
-label.textContent = correlation.label;
-label.className = `tech-pill ${correlation.label.includes('high') || correlation.label.includes('Technical evidence dominates') ? 'border-linkMalicious/20 text-linkMalicious' : correlation.label.includes('elevated') || correlation.label.includes('suspicion') ? 'border-linkSuspicious/20 text-linkSuspicious' : 'border-emerald-300/20 text-emerald-300'}`;
-narrative.textContent = correlation.narrative;
-signals.innerHTML = `\n<div class="rounded-lg border border-cyan-400/10 bg-cyberDeep/50 p-2">Psychological: <strong>${correlation.psychologicalRisk}/100</strong></div>\n<div class="rounded-lg border border-cyan-400/10 bg-cyberDeep/50 p-2">VirusTotal: <strong>${escapeHtml(correlation.verdict)}</strong></div>\n`;
+function setMetricBar(barId, value, valueId){
+  const bar = document.getElementById(barId);
+  const valueEl = document.getElementById(valueId);
+  if (bar) bar.style.width = `${Math.max(0, Math.min(100, value))}%`;
+  if (valueEl) valueEl.textContent = `${Math.round(value)}/100`;
+}
+
+function renderThreatLevel(correlation){
+  const p = getCorrelationPresentation(correlation);
+  const bar = document.getElementById('threatLevelBar');
+  const marker = document.getElementById('threatLevelMarker');
+  const score = document.getElementById('threatLevelScore');
+  const tag = document.getElementById('threatLevelTag');
+  const note = document.getElementById('threatLevelNote');
+
+  const levelPosition = {Low: 12.5, Medium: 37.5, High: 62.5, Critical: 87.5};
+  const levelNotes = {
+    Low: 'No significant security threats were identified in the available evidence.',
+    Medium: 'Suspicious indicators were identified. Exercise caution with this content.',
+    High: 'Strong indicators of a security threat were identified. This content should not be trusted.',
+    Critical: 'Multiple strong indicators confirm that this content is malicious.'
+  };
+
+  if (bar) bar.style.width = `${Math.max(4, p.threatScore)}%`;
+  if (marker) marker.style.left = `${levelPosition[p.threat]}%`;
+  if (score) score.textContent = p.threatScore;
+  if (tag) {
+    tag.textContent = p.threat;
+    tag.className = `trc-level-tag trc-level-${p.threat.toLowerCase()}`;
+  }
+  if (note) note.textContent = levelNotes[p.threat];
+}
+
+function renderCorrelation(correlation){
+  if (!correlation) return;
+  const p = getCorrelationPresentation(correlation);
+
+  setMetricBar('correlationPsychBar', p.psych, 'correlationPsychValue');
+  setMetricBar('correlationTechBar', p.technical, 'correlationTechValue');
+  setMetricBar('correlationAlignmentBar', p.alignment, 'correlationAlignmentValue');
+
+  const psychText = document.getElementById('correlationPsychText');
+  const techText = document.getElementById('correlationTechText');
+  const alignmentText = document.getElementById('correlationAlignmentText');
+  const label = document.getElementById('correlationLabel');
+  const narrative = document.getElementById('correlationNarrative');
+
+  if (psychText) psychText.textContent = `${p.psych}/100 — strength of the observed influence signals.`;
+
+  if (techText) {
+    if (correlation.level === 'Unavailable') techText.textContent = 'No VirusTotal evidence was available.';
+    else if (correlation.level === 'High' || correlation.level === 'Critical') {
+      techText.textContent = `${correlation.malicious} malicious detection${correlation.malicious === 1 ? '' : 's'} returned by VirusTotal · ${p.technical}/100 evidence strength.`;
+    } else if (correlation.level === 'Caution') {
+      techText.textContent = `${correlation.malicious} malicious detection${correlation.malicious === 1 ? '' : 's'} returned, with limited corroboration · ${p.technical}/100 evidence strength.`;
+    } else if (correlation.level === 'Elevated') {
+      techText.textContent = `${correlation.suspicious} suspicious detection${correlation.suspicious === 1 ? '' : 's'} returned by VirusTotal · ${p.technical}/100 evidence strength.`;
+    } else {
+      techText.textContent = `No malicious or suspicious detections were observed · ${p.technical}/100 evidence strength.`;
+    }
+  }
+
+  if (alignmentText) {
+    alignmentText.textContent = correlation.level === 'Unavailable'
+      ? 'The two evidence streams cannot be compared yet.'
+      : `${p.alignment}/100 — corroboration between the psychological and technical evidence.`;
+  }
+
+  if (label) {
+    label.textContent = correlation.label;
+    const strong = correlation.level === 'High' || correlation.level === 'Critical' || p.psych >= 60;
+    const caution = correlation.level === 'Elevated' || correlation.level === 'Caution' || p.psych >= 40;
+    label.className = `tech-pill ${strong ? 'border-linkMalicious/20 text-linkMalicious' : caution ? 'border-linkSuspicious/20 text-linkSuspicious' : 'border-emerald-300/20 text-emerald-300'}`;
+  }
+
+  if (narrative) narrative.textContent = correlation.narrative;
+  renderThreatLevel(correlation);
 }
 
 function resetTechnicalUI(){
-const status=document.getElementById('technicalStatus');
-const summary=document.getElementById('vtSummary');
-status.textContent='Awaiting URL analysis';
-status.className='tech-pill border-cyan-400/20 text-cyberBlue/70';
-summary.textContent='No technical intelligence requested yet.';
-document.getElementById('technical-links').innerHTML='';
-['vtMalicious','vtSuspicious','vtHarmless','vtUndetected'].forEach(id=>document.getElementById(id).textContent='--');
-document.getElementById('psychRiskValue').textContent='--';
-document.getElementById('technicalVerdictValue').textContent='Awaiting';
-document.getElementById('correlationValue').textContent='Awaiting';
-document.getElementById('correlationLabel').textContent='Awaiting evidence';
-document.getElementById('correlationLabel').className='tech-pill text-emerald-300 border-emerald-300/20';
-document.getElementById('correlationNarrative').textContent='Run a scan to correlate the psychological signals with available technical evidence.';
-document.getElementById('correlationSignals').innerHTML='';
+  const status=document.getElementById('technicalStatus');
+  const summary=document.getElementById('vtSummary');
+  if(status){ status.textContent='Awaiting URL analysis'; status.className='tech-pill border-cyan-400/20 text-cyberBlue/70'; }
+  if(summary) summary.textContent='No technical intelligence requested yet.';
+  const list=document.getElementById('technical-links');
+  if(list) list.innerHTML='';
+  ['vtMalicious','vtSuspicious','vtHarmless','vtUndetected'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent='--';
+  });
+
+  ['correlationPsychBar','correlationTechBar','correlationAlignmentBar'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.style.width='0%';
+  });
+  ['correlationPsychValue','correlationTechValue','correlationAlignmentValue'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent='—';
+  });
+
+  const label=document.getElementById('correlationLabel');
+  if(label){ label.textContent='Awaiting evidence'; label.className='tech-pill text-emerald-300 border-emerald-300/20'; }
+  const narrative=document.getElementById('correlationNarrative');
+  if(narrative) narrative.textContent='Run a scan to compare the available evidence.';
+  const psychText=document.getElementById('correlationPsychText');
+  const techText=document.getElementById('correlationTechText');
+  const alignmentText=document.getElementById('correlationAlignmentText');
+  if(psychText) psychText.textContent='No influence signals measured yet.';
+  if(techText) techText.textContent='No technical evidence returned yet.';
+  if(alignmentText) alignmentText.textContent='Waiting for both evidence streams.';
+
+  const threatBar=document.getElementById('threatLevelBar');
+  const threatMarker=document.getElementById('threatLevelMarker');
+  if(threatBar) threatBar.style.width='0%';
+  if(threatMarker) threatMarker.style.left='12.5%';
+  const threatScore=document.getElementById('threatLevelScore');
+  const threatTag=document.getElementById('threatLevelTag');
+  const threatNote=document.getElementById('threatLevelNote');
+  if(threatScore) threatScore.textContent='—';
+  if(threatTag){ threatTag.textContent='Awaiting analysis'; threatTag.className='trc-level-tag'; }
+  if(threatNote) threatNote.textContent='Scan a message to see how the available evidence lines up.';
+}
+
+// ====== TRACIDUS Analytical Architecture ======
+// TRACIDUS Core is authoritative. Phi-4-mini provides contextual explanation only.
+// "TRACIDUS decides. Phi explains."
+window.TRACIDUS_CONTEXT_ENGINE_ENABLED = true;
+window.TRACIDUS_CONTEXT_ENGINE_URL = String(
+  window.TRACIDUS_CONTEXT_ENGINE_URL ||
+  (
+    (location.protocol === 'file:' ||
+     location.hostname === 'localhost' ||
+     location.hostname === '127.0.0.1')
+      ? 'http://localhost:10000/api/context-intelligence'
+      : `${TRACIDUS_API_BASE_URL}/api/context-intelligence`
+  )
+).replace(/\/+$/, '');
+
+function setEngineBadge(id, state, label){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = `engine-badge ${state || ''}`;
+  el.innerHTML = `<span class="engine-dot"></span>${escapeHtml(label)}`;
+}
+
+function resetContextUI(){
+  setEngineBadge('contextEngineStatus','standby','STANDBY');
+  const values = {
+    ctxVerdict: 'Not analyzed.',
+    ctxThreatType: 'Not analyzed.',
+    ctxLikelyIntent: 'Not analyzed.',
+    ctxRecommendedAction: 'Not analyzed.'
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  });
+  const findings = document.getElementById('ctxFindings');
+  if (findings) findings.innerHTML = '<div class="context-row">Contextual interpretation will appear here after the deterministic evidence is complete.</div>';
+}
+
+function normalizeContextVerdict(value){
+  const v = String(value || '').trim().toUpperCase();
+  return v === 'LEGITIMATE' || v === 'SUSPICIOUS' ? v : null;
+}
+
+/*
+ * Deterministic assessment bridge.
+ *
+ * These functions are intentionally thin wrappers around the existing
+ * TRACIDUS correlation/threat-level renderer.  The previous integration
+ * referenced them but never defined them, which caused runScan() to abort
+ * immediately before runContextEngine() could call Phi-4-mini.
+ */
+function resetAssessmentUI(){
+  const bar = document.getElementById('threatLevelBar');
+  const marker = document.getElementById('threatLevelMarker');
+  const score = document.getElementById('threatLevelScore');
+  const tag = document.getElementById('threatLevelTag');
+  const note = document.getElementById('threatLevelNote');
+
+  if (bar) bar.style.width = '0%';
+  if (marker) marker.style.left = '12.5%';
+  if (score) score.textContent = '—';
+  if (tag) {
+    tag.textContent = 'Awaiting analysis';
+    tag.className = 'trc-level-tag';
+  }
+  if (note) note.textContent = 'Scan a message to see how the available evidence lines up.';
+}
+
+function renderDeterministicAssessment(out){
+  const correlation = out?.correlation || buildCorrelation(out || {});
+  renderThreatLevel(correlation);
+}
+
+function buildContextPayload(text, out){
+  const technical = getTechnicalAggregate(out?.linkAnalysis || []);
+  const correlation = out?.correlation || buildCorrelation(out || {});
+
+  return {
+    artifact: String(text || ''),
+    psychological: {
+      trust: Number(out?.scaled?.trust || 0),
+      reciprocity: Number(out?.scaled?.reciprocity || 0),
+      authority: Number(out?.scaled?.authority || 0),
+      consensus: Number(out?.scaled?.consensus || 0),
+      intimidation: Number(out?.scaled?.intimidation || 0),
+      deception: Number(out?.scaled?.deception || 0),
+      urgency: Number(out?.scaled?.urgency || 0),
+      scarcity: Number(out?.scaled?.scarcity || 0)
+    },
+    technical: {
+      malicious: Number(technical?.malicious || 0),
+      suspicious: Number(technical?.suspicious || 0),
+      harmless: Number(technical?.harmless || 0),
+      undetected: Number(technical?.undetected || 0),
+      evidence: (out?.linkAnalysis || [])
+        .flatMap(link => Array.isArray(link?.technicalEvidence) ? link.technicalEvidence : [])
+        .map(item => {
+          if (typeof item === 'string') return item;
+          try { return JSON.stringify(item); }
+          catch (_) { return String(item); }
+        })
+    },
+    correlation: {
+      threatLevel: String(correlation?.threat || 'Low').toUpperCase(),
+      evidenceAlignment: Math.max(
+        0,
+        Math.min(100, Number(correlation?.alignment || 0))
+      )
+    }
+  };
+}
+
+function buildLegacyContextPayload(text, out){
+  const technical = getTechnicalAggregate(out?.linkAnalysis || []);
+  const correlation = out?.correlation || buildCorrelation(out || {});
+  return {
+    artifact: String(text || ''),
+    psychological: {
+      trust: Number(out?.scaled?.trust || 0),
+      reciprocity: Number(out?.scaled?.reciprocity || 0),
+      authority: Number(out?.scaled?.authority || 0),
+      consensus: Number(out?.scaled?.consensus || 0),
+      intimidation: Number(out?.scaled?.intimidation || 0),
+      deception: Number(out?.scaled?.deception || 0),
+      urgency: Number(out?.scaled?.urgency || 0),
+      scarcity: Number(out?.scaled?.scarcity || 0)
+    },
+    technical: {
+      malicious: Number(technical?.malicious || 0),
+      suspicious: Number(technical?.suspicious || 0),
+      harmless: Number(technical?.harmless || 0),
+      undetected: Number(technical?.undetected || 0),
+      evidence: (out?.linkAnalysis || []).flatMap(link => Array.isArray(link?.technicalEvidence) ? link.technicalEvidence : []).map(item => {
+        if (typeof item === 'string') return item;
+        try { return JSON.stringify(item); } catch (_) { return String(item); }
+      })
+    },
+    correlation: {
+      threatLevel: String(correlation?.threat || 'Low').toUpperCase(),
+      evidenceAlignment: Math.max(0, Math.min(100, Number(correlation?.alignment || 0)))
+    }
+  };
+}
+
+function renderContextResult(result, token){
+  if (token !== window.__tracidusScanToken) return false;
+
+  const r =
+    result?.contextIntelligence ||
+    result?.context ||
+    result?.analysis ||
+    result ||
+    {};
+  const verdict = normalizeContextVerdict(r.contextual_verdict);
+  const threatType = String(r.threat_type || '').trim();
+  const likelyIntent = String(r.likely_intent || '').trim();
+  const recommendedAction = String(r.recommended_action || '').trim();
+  const findings = Array.isArray(r.key_findings) ? r.key_findings : [];
+
+  // Strict frontend validation of the five-field Phi contract.
+  if (!verdict || !threatType || !likelyIntent || !recommendedAction || findings.length !== 3) {
+    throw new Error('Malformed Phi-4-mini response: expected contextual_verdict, threat_type, likely_intent, exactly 3 key_findings, and recommended_action.');
+  }
+
+  document.getElementById('ctxVerdict').textContent = verdict;
+  document.getElementById('ctxThreatType').textContent = threatType;
+  document.getElementById('ctxLikelyIntent').textContent = likelyIntent;
+  document.getElementById('ctxRecommendedAction').textContent = recommendedAction;
+
+  const findingsEl = document.getElementById('ctxFindings');
+  if (findingsEl) {
+    // escapeHtml is used for every Phi-generated value before HTML insertion.
+    findingsEl.innerHTML = findings.map(f =>
+      `<div class="context-row">${escapeHtml(String(f))}</div>`
+    ).join('');
+  }
+
+  setEngineBadge('contextEngineStatus','complete','PHI-4-MINI COMPLETE');
+  return true;
+}
+
+async function runContextEngine(text, out, token){
+  if (!window.TRACIDUS_CONTEXT_ENGINE_ENABLED) return null;
+  if (token !== window.__tracidusScanToken) return null;
+
+  setEngineBadge('contextEngineStatus','','PHI-4-MINI ANALYZING');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 125000);
+
+  async function request(payload){
+    const response = await fetch(window.TRACIDUS_CONTEXT_ENGINE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    const body = await response.json().catch(() => null);
+    return { response, body };
+  }
+
+  try {
+    const response = await fetch(window.TRACIDUS_CONTEXT_ENGINE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(buildContextPayload(text, out)),
+      signal: controller.signal
+    });
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        payload?.error?.message ||
+        `Context intelligence request failed (${response.status}).`
+      );
+    }
+
+    if (token !== window.__tracidusScanToken) return null;
+
+    if (!payload?.success || !payload?.contextIntelligence) {
+      const backendMessage =
+        typeof payload?.error === 'string'
+          ? payload.error
+          : payload?.error?.message;
+
+      throw new Error(
+        backendMessage ||
+        'Context Intelligence backend returned no usable Phi result.'
+      );
+    }
+
+    renderContextResult(payload, token);
+    return payload;
+  } catch (error) {
+    if (token !== window.__tracidusScanToken) return null;
+    console.warn('Phi-4-mini context intelligence unavailable:', error);
+    setEngineBadge('contextEngineStatus','error','PHI-4-MINI UNAVAILABLE');
+    const findings = document.getElementById('ctxFindings');
+    if (findings) {
+      findings.innerHTML = '<div class="context-row">Context intelligence is temporarily unavailable. The deterministic TRACIDUS assessment remains authoritative and was not changed.</div>';
+    }
+    return { error: { message: error?.message || 'Context intelligence unavailable.' } };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // ====== App Logic ======
@@ -2239,9 +3154,6 @@ return;
 
 const token = ++window.__tracidusScanToken;
 setRiskUI(0);
-document.getElementById('psychRiskValue').textContent='Analyzing';
-document.getElementById('technicalVerdictValue').textContent='Awaiting';
-document.getElementById('correlationValue').textContent='Awaiting';
 document.getElementById('summary').textContent='Analyzing psychological signals…';
 document.getElementById('badges').textContent='Processing…';
 document.getElementById('explain').innerHTML='';
@@ -2267,7 +3179,6 @@ radarHero.update();
 updateHeroVectorLegend(arr);
 
 setRiskUI(out.riskScore);
-document.getElementById('psychRiskValue').textContent = `${out.riskScore}/100`;
 document.getElementById('summary').textContent = out.summary;
 document.getElementById('badges').textContent = awardBadges(out.hitsByCat || {});
 renderExplain(out.matchesByCat || {});
@@ -2295,7 +3206,9 @@ if (!out.linkAnalysis || out.linkAnalysis.length === 0) {
 const correlation = buildCorrelation(out);
 renderTechnicalIntelligence([]);
 renderCorrelation(correlation);
-window.__tracidusLast = { ...window.__tracidusLast, correlation };
+renderDeterministicAssessment({ ...out, correlation });
+const contextResult = await runContextEngine(text,{...out,correlation},token);
+window.__tracidusLast = { ...window.__tracidusLast, correlation, context: contextResult };
 return;
 }
 
@@ -2309,7 +3222,9 @@ renderLinkAnalysis(out.linkAnalysis);
 renderTechnicalIntelligence(out.linkAnalysis);
 renderCorrelation(out.correlation);
 
-window.__tracidusLast = { ...out, text };
+renderDeterministicAssessment(out);
+const contextResult = await runContextEngine(text,out,token);
+window.__tracidusLast = { ...out, text, context: contextResult };
 } catch (technicalErr) {
 console.error('Technical intelligence enrichment failed:', technicalErr);
 if (token !== window.__tracidusScanToken) return;
@@ -2317,7 +3232,9 @@ const correlation = buildCorrelation(out);
 out.correlation = correlation;
 renderTechnicalIntelligence(out.linkAnalysis || []);
 renderCorrelation(correlation);
-window.__tracidusLast = { ...out, text };
+renderDeterministicAssessment(out);
+const contextResult = await runContextEngine(text,out,token);
+window.__tracidusLast = { ...out, text, context: contextResult };
 }
 }
 
@@ -2336,6 +3253,8 @@ document.getElementById('explain').innerHTML='';
 document.getElementById('highlighted').innerHTML='';
 document.getElementById('link-analysis').innerHTML='<p class="text-cyberBlue/60">URLs found will be analyzed here.</p>';
 resetTechnicalUI();
+resetAssessmentUI();
+resetContextUI();
 window.__tracidusLast = null;
 });
 // Export: PNG of radar
@@ -2345,21 +3264,12 @@ link.download = 'tracidus_radar.png';
 link.href = document.getElementById('radarCanvas').toDataURL('image/png');
 link.click();
 });
-// Export: JSON report
-document.getElementById('exportJsonBtn').addEventListener('click', () => {
-const data = window.__tracidusLast || { note: 'Run a scan first.' };
-const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-const url = URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url; a.download = 'tracidus_report.json'; a.click();
-URL.revokeObjectURL(url);
-});
 // Copy summary
 document.getElementById('copySummaryBtn').addEventListener('click', () => {
 const data = window.__tracidusLast;
 const correlation = data?.correlation;
-const technical = correlation ? `\nTechnical Verdict: ${correlation.verdict}\nCorrelation: ${correlation.label}\nCorrelation Narrative: ${correlation.narrative}` : '';
-const summary = data ? `TRACIDUS Report:\nPsychological Risk: ${data.riskScore}/100\nSummary: ${data.summary}${technical}\n\nKey Findings:\n${Object.entries(data.hitsByCat || {}).filter(([cat, count]) => count > 0).map(([cat, count]) => `- ${cat.charAt(0).toUpperCase() + cat.slice(1)}: ${count} hits`).join('\n')}` : 'Run a scan first.';
+const technical = correlation ? `\nThreat Level: ${correlation.threat} (${correlation.threatScore}/100)\nTRACIDUS Verdict: ${correlation.verdict}\nRecommended Action: ${correlation.action}\nCorrelation: ${correlation.label}\nCorrelation Narrative: ${correlation.narrative}` : '';
+const summary = data ? `TRACIDUS Report:\nPsychological Influence: ${data.riskScore}/100\nSummary: ${data.summary}${technical}\n\nKey Findings:\n${Object.entries(data.hitsByCat || {}).filter(([cat, count]) => count > 0).map(([cat, count]) => `- ${cat.charAt(0).toUpperCase() + cat.slice(1)}: ${count} hits`).join('\n')}` : 'Run a scan first.';
 
 navigator.clipboard.writeText(summary).then(()=>{
 const btn = document.getElementById('copySummaryBtn');
@@ -2367,6 +3277,10 @@ const old = btn.textContent; btn.textContent = '✅ Copied';
 setTimeout(()=>btn.textContent=old, 1200);
 });
 });
+// Init analytical panels
+resetAssessmentUI();
+resetContextUI();
+
 // Init transparency counter
 document.getElementById('counter').textContent = Number(localStorage.getItem('tracidus_scans')||'0');
 document.getElementById('counterHero').textContent = Number(localStorage.getItem('tracidus_scans')||'0') + ' scans on this device';
